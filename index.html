@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Gaussian Splatting Viewer</title>
+    <style>
+        body { margin: 0; background-color: #000; overflow: hidden; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import { Viewer } from 'https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.3.3/dist/gaussian-splats-3d.module.js';
+
+        const viewer = new Viewer({
+            'selfContained': true,
+            'initialCameraPosition': [0, 1, 5],
+            'cameraUp': [0, -1, 0],
+        });
+
+        // 방금 업로드한 model.splat 파일을 불러옵니다.
+        viewer.addSplatScene('model.splat')
+            .then(() => {
+                viewer.start();
+            })
+            .catch((err) => console.error("모델 로딩 실패:", err));
+    </script>
+</body>
+</html>
