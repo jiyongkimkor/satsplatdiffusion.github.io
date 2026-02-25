@@ -19,12 +19,17 @@
             'cameraUp': [0, -1, 0],
         });
 
-        // 방금 업로드한 model.splat 파일을 불러옵니다.
-        viewer.addSplatScene('https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat')
+        // 외부 서버(Hugging Face)에서 파일을 가져올 수 있도록 설정을 추가합니다.
+        viewer.addSplatScene('https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat', {
+            'splatAlphaRemovalThreshold': 5, // 2D GS일 경우 투명도 최적화
+        })
             .then(() => {
                 viewer.start();
             })
-            .catch((err) => console.error("모델 로딩 실패:", err));
+            .catch((err) => {
+                console.error("모델 로딩 실패:", err);
+                alert("모델을 불러오지 못했습니다. 링크나 CORS 설정을 확인하세요.");
+            });
     </script>
 </body>
 </html>
