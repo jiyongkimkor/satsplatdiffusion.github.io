@@ -10,21 +10,27 @@
             const status = document.getElementById("status");
             
             try {
+                // 1. 기본 셋업 (renderer, scene 필수 추가)
+                const renderer = new SPLAT.WebGLRenderer(canvas);
+                const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
-                camera.up = new SPLAT.Vector3(0, -1, 0); // 지용 님이 요청하신 방향
                 
-                // 2. 컨트롤러 설정 (반응 속도 조절)
+                // 2. 방향 설정 (0, -1, 0 을 하늘 방향으로 설정)
+                camera.up = new SPLAT.Vector3(0, -1, 0);
+                
+                // 3. 초기 카메라 위치 고정 (데이터를 정면에서 바라보게 함)
+                // 데이터가 안 보인다면 z 값을 5, 10, 20 등으로 키워보세요.
+                camera.position = new SPLAT.Vector3(0, 0, 10); 
+                camera.lookAt(new SPLAT.Vector3(0, 0, 0));
+
                 const controls = new SPLAT.OrbitControls(camera, canvas);
                 
-                // 마우스 반응 속도 조절 (기본값보다 높여서 둔감함 해결)
-                controls.orbitSpeed = 2.0;  // 회전 속도 (숫자가 클수록 빠름)
-                controls.zoomSpeed = 1.5;   // 줌 속도
-                controls.panSpeed = 1.2;    // 팬(이동) 속도
-                
-                // 댐핑(부드러움) 조절 - 너무 둔하면 이 값을 낮추거나 false로 끕니다.
-                controls.damping = 0.1;
+                // 4. 반응 속도 대폭 개선 (둔감함 해결)
+                controls.orbitSpeed = 5.0;  // 회전 속도 대폭 상향
+                controls.zoomSpeed = 3.0;   // 줌 속도 상향
+                controls.panSpeed = 2.0;    // 팬 속도 상향
+                controls.damping = 0;       // 0으로 설정하면 즉각적으로 반응함 (지연 제거)
 
-                // 구글 드라이브 보안 우회 직링크
                 const url = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat";
 
                 status.innerText = "Connecting to Data (136MB)...";
@@ -43,15 +49,17 @@
                 requestAnimationFrame(frame);
             } catch (e) {
                 console.error(e);
-                status.innerText = "Network Blocked. Please upload .splat file to GitHub directly.";
+                status.innerText = "Error occurred. Check console (F12).";
             }
         }
         main();
     </script>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
         #container { width: 100vw; height: 85vh; background: #000; display: block; }
-        .info { padding: 15px; background: #222; }
+        .info { padding: 15px; background: #222; border-bottom: 1px solid #444; }
+        h3 { margin: 0 0 5px 0; color: #4AF; }
+        #status { margin: 0; font-size: 0.9em; color: #ccc; }
     </style>
 </head>
 <body>
