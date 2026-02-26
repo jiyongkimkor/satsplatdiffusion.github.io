@@ -1,40 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D GS Viewer</title>
+    <title>SatSplat: Satellite 2D-GS Project</title>
+    <script src="https://cdn.jsdelivr.net/npm/@antimatter15/splat@latest/dist/splat.js"></script>
     <style>
-        body { margin: 0; background-color: #000; overflow: hidden; }
-        canvas { width: 100vw; height: 100vh; display: block; }
+        body { font-family: 'Inter', sans-serif; background: #111; color: white; text-align: center; }
+        .container { max-width: 900px; margin: auto; padding: 50px; }
+        .metric-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .metric-table th, .metric-table td { border: 1px solid #444; padding: 12px; }
+        .highlight { color: #4AF; font-weight: bold; }
+        #viewer { width: 100%; height: 500px; border-radius: 10px; background: #000; }
     </style>
 </head>
 <body>
-    <script type="module">
-        // 404 방지를 위해 더 안정적인 UNPKG 경로 사용
-        import * as GaussianSplats3D from 'https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.1/dist/gaussian-splats-3d.module.js';
+    <div class="container">
+        <h1>SatSplat: High-Fidelity Satellite Reconstruction</h1>
+        <p>Achieving state-of-the-art visual realism in satellite 3D reconstruction.</p>
 
-        const viewer = new GaussianSplats3D.Viewer({
-            'cameraUp': [0, -1, 0],
-            'initialCameraPosition': [0, 0, 5],
-            'initialCameraLookAt': [0, 0, 0],
-            'sphericalHarmonicsDegree': 0 // 2D GS일 경우 보통 SH가 낮음
-        });
+        <div id="viewer"></div>
 
-        // Hugging Face 'resolve'는 CORS 에러가 잦으므로 'download=true' 파라미터 활용 제안
-        const url = 'https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true';
+        <table class="metric-table">
+            <tr>
+                <th>Method</th>
+                <th>CMMD ↓</th>
+                <th>FID_CLIP ↓</th>
+                <th>LPIPS ↓</th>
+            </tr>
+            <tr>
+                <td>Baseline (CoR-GS)</td>
+                <td>5.241</td>
+                <td>89.03</td>
+                <td>0.948</td>
+            </tr>
+            <tr class="highlight">
+                <td>Ours (SatSplat)</td>
+                <td>2.086</td>
+                <td>27.35</td>
+                <td>0.791</td>
+            </tr>
+        </table>
+    </div>
 
-        viewer.addSplatScene(url, {
-            'splatAlphaRemovalThreshold': 5,
-            'showLoadingUI': true
-        })
-        .then(() => {
-            viewer.start();
-        })
-        .catch((err) => {
-            console.error("로딩 에러 발생:", err);
-            // 여기서 에러가 뜨면 100% CORS 문제입니다.
-        });
+    <script>
+        // 지용 님의 .ply 파일 경로로 수정하세요
+        const viewer = new SplatViewer(document.getElementById('viewer'));
+        viewer.load("your_model_output.ply");
     </script>
 </body>
 </html>
