@@ -1,52 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Satellite 2D-GS Project</title>
+    <title>SatSplat: Project Showcase</title>
     <script src="https://cdn.jsdelivr.net/npm/@antimatter15/splat@0.0.13/dist/splat.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background: #111; color: white; text-align: center; margin: 0; }
         .container { max-width: 900px; margin: auto; padding: 50px; }
         .metric-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #222; }
-        .metric-table th, .metric-table td { border: 1px solid #444; padding: 12px; }
-        .highlight { color: #4AF; font-weight: bold; background: #2a3a4a; }
-        #viewer { width: 100%; height: 500px; border-radius: 10px; background: #000; }
+        .metric-table td { border: 1px solid #444; padding: 15px; font-weight: bold; }
+        #viewer { width: 100%; height: 500px; border-radius: 10px; background: #000; margin-bottom: 20px; }
+        .highlight { color: #4AF; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>SatSplat: High-Fidelity Satellite Reconstruction</h1>
-        <table class="metric-table">
-            <tr class="highlight"><td>Ours (SatSplat)</td><td>CMMD: 2.086</td><td>FID_CLIP: 27.35</td></tr>
-        </table>
-
+        
         <div id="viewer"></div>
-        <p id="status">Loading Engine...</p>
+        <p id="status">Checking library status...</p>
+
+        <table class="metric-table">
+            <tr class="highlight">
+                <td>Ours (SatSplat)</td>
+                <td>CMMD: 2.086</td>
+                <td>FID_CLIP: 27.35</td>
+            </tr>
+        </table>
     </div>
 
     <script>
-        // 엔진이 로드되었는지 체크하는 함수
-        function startViewer() {
-            const statusTag = document.getElementById('status');
+        const plyUrl = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
+        const statusTag = document.getElementById('status');
+
+        function init() {
             try {
-                // 136MB 파일은 용량이 커서 로딩에 시간이 걸리니 직링크를 사용합니다.
-                const plyUrl = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
-                
-                // SplatViewer가 정의되었는지 확인
+                // 1. SplatViewer 확인 (가장 일반적인 경우)
                 if (typeof SplatViewer !== 'undefined') {
                     const viewer = new SplatViewer(document.getElementById('viewer'));
                     viewer.load(plyUrl);
-                    statusTag.innerText = "Scene Loading (136MB)... Please wait.";
-                } else {
-                    throw new Error("SplatViewer not found");
+                    statusTag.innerText = "Engine Ready. Loading 136MB Data...";
+                } 
+                // 2. Splat.Viewer 확인 (일부 버전 대응)
+                else if (typeof Splat !== 'undefined' && Splat.Viewer) {
+                    const viewer = new Splat.Viewer(document.getElementById('viewer'));
+                    viewer.addSplatScene(plyUrl);
+                    statusTag.innerText = "Engine Ready (Alt). Loading Data...";
+                } 
+                else {
+                    throw new Error("Library not found");
                 }
             } catch (e) {
                 console.error(e);
-                statusTag.innerText = "Error: Library not loaded. Please refresh.";
+                statusTag.innerText = "Still waiting for library... (Try refreshing)";
+                // 2초 뒤 재시도 (비동기 로드 대응)
+                setTimeout(init, 2000);
             }
         }
 
-        // 페이지의 모든 리소스(JS 포함)가 로드된 후 실행
-        window.onload = startViewer;
+        // 페이지 로드 후 실행
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
