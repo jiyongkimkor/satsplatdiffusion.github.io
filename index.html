@@ -29,12 +29,14 @@
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
                 
-                // 가시거리(Far) 확보: 위성 데이터는 스케일이 크므로 넉넉하게 잡습니다.
-                camera.far = 10000;
+                // 1. 소형 데이터(-1~1)용 클리핑 설정
+                camera.near = 0.01; 
+                camera.far = 100;
 
                 const controls = new SPLAT.OrbitControls(camera, canvas);
-                controls.orbitSpeed = 5.0;  
-                controls.zoomSpeed = 3.0;   
+                // 데이터가 작으므로 회전/줌 속도를 너무 빠르지 않게 조정
+                controls.orbitSpeed = 2.5;  
+                controls.zoomSpeed = 1.5;   
                 controls.damping = 0;       
 
                 const url = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat";
@@ -44,14 +46,13 @@
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 1. 축 회전 (Z-up -> Y-up)
+                // 2. 축 회전 (Z-up -> Y-up)
                 scene.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
 
-                // 2. [핵심] 데이터의 스케일에 맞춰 카메라를 자동으로 정렬합니다.
-                // 데이터가 너무 작거나 너무 크면 화면에 안 보일 수 있으므로 
-                // 강제로 원점 근처로 카메라를 위치시키고 타겟을 고정합니다.
-                camera.position = new SPLAT.Vector3(0, 5, 20); // 초기 위치
-                controls.target = new SPLAT.Vector3(0, 0, 0);  // 중심점 응시
+                // 3. [핵심] 카메라 위치 수정 (-1~1 데이터용)
+                // 전체 크기가 2이므로, 카메라를 (0, 2, 3) 정도에 두어야 화면에 꽉 찹니다.
+                camera.position = new SPLAT.Vector3(0, 2, 3); 
+                controls.target = new SPLAT.Vector3(0, 0, 0);  
                 controls.update();
 
                 status.innerText = "Success! CMMD: 2.086 | Drag to Rotate";
