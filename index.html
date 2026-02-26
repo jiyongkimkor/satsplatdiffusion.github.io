@@ -42,9 +42,22 @@
     </div>
 
     <script>
-        // 지용 님의 .ply 파일 경로로 수정하세요
-        const viewer = new SplatViewer(document.getElementById('viewer'));
-        viewer.load("https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9");
+        window.onload = function() {
+            try {
+                // 라이브러리에 따라 Splat 또는 SplatViewer로 정의될 수 있습니다.
+                const viewer = new Splat.Viewer(document.getElementById('viewer'));
+                
+                // 구글 드라이브 직링크 (id 확인 필수)
+                const plyUrl = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
+                
+                viewer.addSplatScene(plyUrl); 
+            } catch (e) {
+                console.error("Viewer initialization failed:", e);
+                // 에러가 나면 SplatViewer로 다시 시도
+                const viewer = new SplatViewer(document.getElementById('viewer'));
+                viewer.load("https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9");
+            }
+        };
     </script>
 </body>
 </html>
