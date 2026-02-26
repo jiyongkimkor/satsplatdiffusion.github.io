@@ -1,86 +1,145 @@
 <!DOCTYPE html>
+
 <html>
+
 <head>
+
     <title>SatSplat: JAX_068 Showcase</title>
-    <script src="https://unpkg.com/gsplat@1.2.0/dist/index.js"></script>
-    <style>
-        body { margin: 0; background: #000; color: white; font-family: 'Inter', sans-serif; text-align: center; overflow: hidden; }
-        #container { width: 100vw; height: 85vh; background: #000; display: block; cursor: move; }
-        .info { padding: 15px; background: #111; border-bottom: 1px solid #333; }
-        h3 { margin: 0 0 5px 0; color: #4AF; letter-spacing: 1px; }
-        #status { margin: 0; font-size: 0.9em; color: #888; }
-        .metrics { font-size: 0.85em; color: #4AF; margin-top: 5px; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="info">
-        <h3>SatSplat: High-Fidelity Satellite Reconstruction</h3>
-        <p id="status">Initializing Engine...</p>
-        <div class="metrics">CMMD: 2.086 | FID_CLIP: 27.35</div>
-    </div>
-    
-    <canvas id="container"></canvas>
 
-    <script>
+    <script type="module">
+
+        import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
+
+
+
         async function main() {
-            const canvas = document.getElementById("container");
-            const status = document.getElementById("status");
-            
-            try {
-                // 라이브러리 로드 확인
-                if (typeof SPLAT === 'undefined') {
-                    status.innerText = "Error: Library not loaded. Please refresh.";
-                    return;
-                }
 
-                // 2. 렌더링 구성 (SPLAT 전역 객체 사용)
+            const canvas = document.getElementById("container");
+
+            const status = document.getElementById("status");
+
+            
+
+            try {
+
+                // 1. 기본 셋업
+
                 const renderer = new SPLAT.WebGLRenderer(canvas);
+
                 const scene = new SPLAT.Scene();
+
                 const camera = new SPLAT.Camera();
+
                 
-                // 3. 컨트롤러 설정 (둔감함 해결)
+
+                // 2. 컨트롤러 설정 (둔감함 해결)
+
                 const controls = new SPLAT.OrbitControls(camera, canvas);
-                controls.orbitSpeed = 8.0;  // 반응성 극대화
-                controls.zoomSpeed = 4.0;
-                controls.panSpeed = 2.0;
+
+                controls.orbitSpeed = 5.0;  // 회전 속도 대폭 상향
+
+                controls.zoomSpeed = 3.0;   // 줌 속도 상향
+
+                controls.panSpeed = 2.0;    // 팬 속도 상향
+
                 controls.damping = 0;       // 즉각 반응
 
-                // 4. 데이터 로딩 (허깅페이스 직링크)
+
+
                 const url = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat";
-                status.innerText = "Loading Satellite Data (136MB)...";
+
+
+
+                status.innerText = "Connecting to Data (136MB)...";
+
+
+
+                // 3. 데이터 로딩
 
                 await SPLAT.Loader.LoadAsync(url, scene, (progress) => {
+
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
+
                 });
 
-                // 5. [축 방향 종결] 데이터 자체를 회전시켜 Y-up 시스템에 맞춤
-                // X축 기준 -90도 회전하여 위성 사진을 바닥에 눕힘
+
+
+                // 4. [핵심] 데이터 축 회전 (카메라 축 대신 데이터 자체를 회전)
+
+                // 위성 데이터 좌표계를 WebGL 표준에 맞게 X축 기준 -90도 회전
+
                 scene.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
 
-                // 6. 카메라 초기 위치 (Y-up 시스템 기준 하늘에서 내려다보기)
-                camera.position = new SPLAT.Vector3(0, 12, 12); 
+
+
+                // 5. 카메라 초기 시점 고정 (위에서 약간 대각선으로 내려다보는 시점)
+
+                camera.position = new SPLAT.Vector3(0, 15, 15);
+
                 camera.lookAt(new SPLAT.Vector3(0, 0, 0));
 
-                status.innerText = "Success! Drag to Explore JAX_068 Dataset";
+
+
+                status.innerText = "Success! CMMD: 2.086 | Drag to Rotate";
+
                 
+
                 const frame = () => {
+
                     controls.update();
+
                     renderer.render(scene, camera);
+
                     requestAnimationFrame(frame);
+
                 };
+
                 requestAnimationFrame(frame);
 
-                window.addEventListener("resize", () => {
-                    renderer.setSize(window.innerWidth, window.innerHeight * 0.85);
-                });
+
 
             } catch (e) {
+
                 console.error(e);
-                status.innerText = "CORS Blocked. Please check HuggingFace visibility (Public).";
+
+                status.innerText = "Error occurred. Check console (F12).";
+
             }
+
         }
 
         main();
+
     </script>
+
+    <style>
+
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
+
+        #container { width: 100vw; height: 85vh; background: #000; display: block; }
+
+        .info { padding: 15px; background: #222; border-bottom: 1px solid #444; }
+
+        h3 { margin: 0 0 5px 0; color: #4AF; letter-spacing: 1px; }
+
+        #status { margin: 0; font-size: 0.9em; color: #aaa; font-weight: bold; }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="info">
+
+        <h3>SatSplat: High-Fidelity Satellite Reconstruction</h3>
+
+        <p id="status">Initializing Engine...</p>
+
+    </div>
+
+    <canvas id="container"></canvas>
+
 </body>
+
 </html>
