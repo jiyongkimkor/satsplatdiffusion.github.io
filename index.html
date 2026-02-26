@@ -46,8 +46,6 @@
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 2. 축 회전 (Z-up -> Y-up)
-                scene.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
 
                 // 3. [핵심] 카메라 위치 수정 (-1~1 데이터용)
                 // 전체 크기가 2이므로, 카메라를 (0, 2, 3) 정도에 두어야 화면에 꽉 찹니다.
