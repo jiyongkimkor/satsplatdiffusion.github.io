@@ -2,63 +2,68 @@
 <html>
 <head>
     <title>SatSplat: Project Showcase</title>
-    <script src="https://cdn.jsdelivr.net/npm/@antimatter15/splat@0.0.13/dist/splat.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #111; color: white; text-align: center; margin: 0; }
-        .container { max-width: 900px; margin: auto; padding: 50px; }
-        .metric-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #222; }
-        .metric-table td { border: 1px solid #444; padding: 15px; font-weight: bold; }
-        #viewer { width: 100%; height: 500px; border-radius: 10px; background: #000; margin-bottom: 20px; }
-        .highlight { color: #4AF; }
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
+        #container { width: 100vw; height: 80vh; background: #000; }
+        .info { padding: 20px; }
+        .metric { color: #4AF; font-weight: bold; font-size: 1.2em; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>SatSplat: High-Fidelity Satellite Reconstruction</h1>
-        
-        <div id="viewer"></div>
-        <p id="status">Checking library status...</p>
-
-        <table class="metric-table">
-            <tr class="highlight">
-                <td>Ours (SatSplat)</td>
-                <td>CMMD: 2.086</td>
-                <td>FID_CLIP: 27.35</td>
-            </tr>
-        </table>
+    <div class="info">
+        <h1>SatSplat Reconstruction</h1>
+        <p class="metric">CMMD: 2.086 | FID_CLIP: 27.35</p>
+        <p id="status">Loading Engine...</p>
     </div>
+    
+    <canvas id="container"></canvas>
 
-    <script>
-        const plyUrl = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
-        const statusTag = document.getElementById('status');
+    <script type="importmap">
+    {
+        "imports": {
+            "gsplat": "https://cdn.jsdelivr.net/npm/gsplat@latest/dist/index.module.js"
+        }
+    }
+    </script>
 
-        function init() {
+    <script type="module">
+        import * as SPLAT from "gsplat";
+
+        async function main() {
+            const canvas = document.getElementById("container");
+            const status = document.getElementById("status");
+            const renderer = new SPLAT.WebGLRenderer(canvas);
+            const scene = new SPLAT.Scene();
+            const camera = new SPLAT.Camera();
+            const controls = new SPLAT.OrbitControls(camera, canvas);
+
+            status.innerText = "Connecting to Google Drive (136MB)...";
+
             try {
-                // 1. SplatViewer 확인 (가장 일반적인 경우)
-                if (typeof SplatViewer !== 'undefined') {
-                    const viewer = new SplatViewer(document.getElementById('viewer'));
-                    viewer.load(plyUrl);
-                    statusTag.innerText = "Engine Ready. Loading 136MB Data...";
-                } 
-                // 2. Splat.Viewer 확인 (일부 버전 대응)
-                else if (typeof Splat !== 'undefined' && Splat.Viewer) {
-                    const viewer = new Splat.Viewer(document.getElementById('viewer'));
-                    viewer.addSplatScene(plyUrl);
-                    statusTag.innerText = "Engine Ready (Alt). Loading Data...";
-                } 
-                else {
-                    throw new Error("Library not found");
-                }
-            } catch (e) {
-                console.error(e);
-                statusTag.innerText = "Still waiting for library... (Try refreshing)";
-                // 2초 뒤 재시도 (비동기 로드 대응)
-                setTimeout(init, 2000);
+                // 구글 드라이브 직링크
+                const url = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
+                
+                // 파일 로드
+                await SPLAT.Loader.LoadAsync(url, scene, (progress) => {
+                    status.innerText = `Loading: ${Math.round(progress * 100)}%`;
+                });
+
+                status.innerText = "Rendered! Use Mouse to Rotate.";
+
+                const frame = () => {
+                    controls.update();
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(frame);
+                };
+                requestAnimationFrame(frame);
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Error: Blocked by CORS or ORB. Try uploading PLY to GitHub directly.";
             }
         }
 
-        // 페이지 로드 후 실행
-        window.addEventListener('load', init);
+        main();
     </script>
 </body>
 </html>
