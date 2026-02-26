@@ -10,10 +10,19 @@
             const status = document.getElementById("status");
             
             try {
-                const renderer = new SPLAT.WebGLRenderer(canvas);
-                const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
+                camera.up = new SPLAT.Vector3(0, -1, 0); // 지용 님이 요청하신 방향
+                
+                // 2. 컨트롤러 설정 (반응 속도 조절)
                 const controls = new SPLAT.OrbitControls(camera, canvas);
+                
+                // 마우스 반응 속도 조절 (기본값보다 높여서 둔감함 해결)
+                controls.orbitSpeed = 2.0;  // 회전 속도 (숫자가 클수록 빠름)
+                controls.zoomSpeed = 1.5;   // 줌 속도
+                controls.panSpeed = 1.2;    // 팬(이동) 속도
+                
+                // 댐핑(부드러움) 조절 - 너무 둔하면 이 값을 낮추거나 false로 끕니다.
+                controls.damping = 0.1;
 
                 // 구글 드라이브 보안 우회 직링크
                 const url = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat";
