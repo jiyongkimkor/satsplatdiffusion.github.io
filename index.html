@@ -24,7 +24,7 @@
                 status.innerText = "Loading Data...";
         
                 // Scene에서 직접 로드 (가장 확실한 방법)
-                await SPLAT.SplatLoader.LoadAsync(url, scene, (progress) => {
+                await SPLAT.Loader.LoadAsync(url, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
         
