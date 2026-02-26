@@ -3,9 +3,9 @@
 <head>
     <title>SatSplat: JAX_068 Showcase</title>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
         #container { width: 100vw; height: 85vh; background: #000; display: block; cursor: move; }
-        .info { padding: 15px; background: #222; border-bottom: 1px solid #444; }
+        .info { padding: 15px; background: #111; border-bottom: 1px solid #333; }
         h3 { margin: 0 0 5px 0; color: #4AF; letter-spacing: 1px; }
         #status { margin: 0; font-size: 0.9em; color: #aaa; font-weight: bold; }
     </style>
@@ -25,19 +25,18 @@
             const status = document.getElementById("status");
             
             try {
-                // 1. 핵심 객체 생성
                 const renderer = new SPLAT.WebGLRenderer(canvas);
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
                 
-                // 2. 컨트롤러 설정 (둔감함 해결)
+                // 가시거리(Far) 확보: 위성 데이터는 스케일이 크므로 넉넉하게 잡습니다.
+                camera.far = 10000;
+
                 const controls = new SPLAT.OrbitControls(camera, canvas);
                 controls.orbitSpeed = 5.0;  
                 controls.zoomSpeed = 3.0;   
-                controls.panSpeed = 2.0;    
                 controls.damping = 0;       
 
-                // 3. 데이터 로딩
                 const url = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat";
                 status.innerText = "Connecting to Data (136MB)...";
 
@@ -45,20 +44,18 @@
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 4. [축 방향 종결] 데이터를 바닥에 눕힘 (-90도 회전)
+                // 1. 축 회전 (Z-up -> Y-up)
                 scene.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
 
-                // 5. 카메라 위치 및 시점 수정 (에러 방지)
-                // Y축이 하늘이 되었으므로 Y와 Z를 높여 대각선 위에서 내려다봅니다.
-                camera.position = new SPLAT.Vector3(0, 15, 15); 
-                
-                // lookAt 대신 컨트롤러 타겟을 원점으로 고정 (이게 더 정확함)
-                controls.target = new SPLAT.Vector3(0, 0, 0);
+                // 2. [핵심] 데이터의 스케일에 맞춰 카메라를 자동으로 정렬합니다.
+                // 데이터가 너무 작거나 너무 크면 화면에 안 보일 수 있으므로 
+                // 강제로 원점 근처로 카메라를 위치시키고 타겟을 고정합니다.
+                camera.position = new SPLAT.Vector3(0, 5, 20); // 초기 위치
+                controls.target = new SPLAT.Vector3(0, 0, 0);  // 중심점 응시
                 controls.update();
 
                 status.innerText = "Success! CMMD: 2.086 | Drag to Rotate";
                 
-                // 6. 렌더 루프
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
