@@ -2,11 +2,12 @@
 <html>
 <head>
     <title>SatSplat: Project Showcase</title>
+    <script src="https://unpkg.com/gsplat@1.2.0/dist/index.js"></script>
     <style>
         body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
-        #container { width: 100vw; height: 80vh; background: #000; }
+        #container { width: 100vw; height: 75vh; background: #000; }
         .info { padding: 20px; }
-        .metric { color: #4AF; font-weight: bold; font-size: 1.2em; }
+        .metric { color: #4AF; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -15,54 +16,44 @@
         <p class="metric">CMMD: 2.086 | FID_CLIP: 27.35</p>
         <p id="status">Loading Engine...</p>
     </div>
-    
     <canvas id="container"></canvas>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "gsplat": "https://cdn.jsdelivr.net/npm/gsplat@latest/dist/index.module.js"
-        }
-    }
-    </script>
-
-    <script type="module">
-        import * as SPLAT from "gsplat";
-
+    <script>
         async function main() {
             const canvas = document.getElementById("container");
             const status = document.getElementById("status");
+
+            // 라이브러리가 로드되었는지 확인
+            if (typeof SPLAT === 'undefined') {
+                status.innerText = "Error: Engine not loaded. Check your internet.";
+                return;
+            }
+
             const renderer = new SPLAT.WebGLRenderer(canvas);
             const scene = new SPLAT.Scene();
             const camera = new SPLAT.Camera();
             const controls = new SPLAT.OrbitControls(camera, canvas);
 
-            status.innerText = "Connecting to Google Drive (136MB)...";
+            // 136MB 파일은 구글 드라이브보다 GitHub 직접 업로드가 정신 건강에 좋습니다.
+            const url = "./JAX_068.splat"; 
 
             try {
-                // 구글 드라이브 직링크
-                const url = "https://drive.google.com/uc?export=download&id=1PlMidpGBGHBL9pRMsdI3H_0nypY9oNJ9";
-                
-                // 파일 로드
+                status.innerText = "Downloading Scene (136MB)...";
                 await SPLAT.Loader.LoadAsync(url, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                status.innerText = "Rendered! Use Mouse to Rotate.";
-
+                status.innerText = "Success! Drag to Rotate.";
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
                     requestAnimationFrame(frame);
                 };
                 requestAnimationFrame(frame);
-
-            } catch (error) {
-                console.error(error);
-                status.innerText = "Error: Blocked by CORS or ORB. Try uploading PLY to GitHub directly.";
+            } catch (e) {
+                status.innerText = "Failed to load .splat file. Check file path.";
             }
         }
-
         main();
     </script>
 </body>
