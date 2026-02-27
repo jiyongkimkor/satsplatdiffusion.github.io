@@ -29,7 +29,7 @@
                 // 1. 회전값 수정: 
                 // X축으로 90도 회전시켜 바닥에 깔고, 
                 // Y축(또는 Z축)으로 180도 회전시켜 뒷면 대신 앞면이 보이게 조정
-                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, Math.PI / 2, Math.PI));
+                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0.0, 0.0));
 
                 // 2. 카메라 위치 (모델을 조망하기 좋은 위치)
                 camera.position.x = 0.0;
