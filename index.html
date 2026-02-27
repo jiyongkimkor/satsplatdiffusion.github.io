@@ -72,13 +72,12 @@
             resize();
 
             controls = new SPLAT.OrbitControls(camera, viewerContainer);
-            camera.position = new SPLAT.Vector3(0.75, -1.5, 0.0);
+            camera.position = new SPLAT.Vector3(1.0, -1.0, 0.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
             /* ======================
                Swipe Comparison Logic
             ====================== */
-
             let isDraggingSwipe = false;
 
             const setSwipe = (clientX) => {
@@ -95,51 +94,53 @@
                 e.stopPropagation();
             });
 
-            window.addEventListener("mousemove", (e) => {
-                if (isDraggingSwipe) setSwipe(e.clientX);
-            });
-
-            window.addEventListener("mouseup", () => {
-                isDraggingSwipe = false;
-            });
-
             /* ======================
-               Sidebar Drag Logic (절대 좌표 기반)
+               Sidebar Drag Logic (GPU Optimized)
             ====================== */
-
             let isDraggingSidebar = false;
-            let offsetX = 0;
-            let offsetY = 0;
-            
+            let currentX = 30; // Initial left
+            let currentY = 30; // Initial top
+            let startMouseX = 0;
+            let startMouseY = 0;
+
             sidebarHeader.addEventListener("mousedown", (e) => {
                 isDraggingSidebar = true;
-                
-                // 사이드바의 현재 위치와 마우스 클릭 지점 사이의 거리를 저장
-                const rect = sidebar.getBoundingClientRect();
-                offsetX = e.clientX - rect.left;
-                offsetY = e.clientY - rect.top;
+                startMouseX = e.clientX;
+                startMouseY = e.clientY;
                 
                 sidebar.style.cursor = "grabbing";
-                e.stopPropagation();
+                e.preventDefault(); // 드래그 시 텍스트 선택 방지
+                e.stopPropagation(); // OrbitControls 방해 금지
             });
-            
+
             window.addEventListener("mousemove", (e) => {
-                if (!isDraggingSidebar) return;
-                
-                // 마우스 위치에서 처음에 계산한 오프셋을 빼서 부드럽게 이동
-                let newX = e.clientX - offsetX;
-                let newY = e.clientY - offsetY;
-                
-                // 화면 밖으로 나가지 않게 제한 (선택 사항)
-                newX = Math.max(0, Math.min(window.innerWidth - sidebar.offsetWidth, newX));
-                newY = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, newY));
-            
-                sidebar.style.left = `${newX}px`;
-                sidebar.style.top = `${newY}px`;
-                sidebar.style.transform = "none"; // 기존 translate 설정 제거
+                // Swipe logic
+                if (isDraggingSwipe) setSwipe(e.clientX);
+
+                // Sidebar logic
+                if (isDraggingSidebar) {
+                    const deltaX = e.clientX - startMouseX;
+                    const deltaY = e.clientY - startMouseY;
+                    
+                    // transform을 사용하여 메인 스레드 부하 상황에서도 즉각 반응 유도
+                    sidebar.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                }
             });
-            
-            window.addEventListener("mouseup", () => {
+
+            window.addEventListener("mouseup", (e) => {
+                if (isDraggingSidebar) {
+                    // 드래그 종료 시 최종 위치를 left/top에 영구 반영하고 transform 초기화
+                    const deltaX = e.clientX - startMouseX;
+                    const deltaY = e.clientY - startMouseY;
+                    currentX += deltaX;
+                    currentY += deltaY;
+                    
+                    sidebar.style.left = `${currentX}px`;
+                    sidebar.style.top = `${currentY}px`;
+                    sidebar.style.transform = "translate(0, 0)";
+                }
+                
+                isDraggingSwipe = false;
                 isDraggingSidebar = false;
                 sidebar.style.cursor = "grab";
             });
@@ -147,7 +148,6 @@
             /* ======================
                Load Models
             ====================== */
-
             document.getElementById("status").innerText = "Loading...";
 
             try {
@@ -197,17 +197,20 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             z-index: 200;
-            transform: none;
             user-select: none;
+            /* 성능 핵심: 브라우저가 이동을 미리 최적화하도록 설정 */
+            will-change: transform; 
         }
 
         #sidebar-header {
             cursor: grab;
             margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
         }
 
-        h3 { color: var(--accent); margin: 0; }
-        #status { font-size: 0.8rem; color: #999; }
+        h3 { color: var(--accent); margin: 0; pointer-events: none; }
+        #status { font-size: 0.8rem; color: #999; pointer-events: none; }
 
         .info-card {
             background: #fff;
@@ -215,12 +218,14 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             margin-top: 15px;
+            pointer-events: none; /* 드래그 방해 금지 */
         }
 
         .info-card b {
             color: var(--accent);
             font-size: 0.65rem;
             text-transform: uppercase;
+            display: block;
         }
 
         /* ===== Viewer Area ===== */
@@ -249,9 +254,7 @@
             pointer-events: none;
         }
 
-        #canvasB {
-            clip-path: inset(0 0 0 50%);
-        }
+        #canvasB { clip-path: inset(0 0 0 50%); }
 
         #slider-line {
             position: absolute;
@@ -277,6 +280,7 @@
             justify-content: center;
             cursor: col-resize;
             pointer-events: all;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         #swipe-handle::after {
