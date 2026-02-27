@@ -108,35 +108,30 @@
             ====================== */
 
             let isDraggingSidebar = false;
+            let isDraggingSidebar = false;
             let startMouseX = 0;
             let startMouseY = 0;
-            let startSidebarLeft = 0;
-            let startSidebarTop = 0;
+            let startX = 0;
+            let startY = 0;
 
             sidebarHeader.addEventListener("mousedown", (e) => {
                 isDraggingSidebar = true;
                 startMouseX = e.clientX;
                 startMouseY = e.clientY;
-                startSidebarLeft = sidebar.offsetLeft;
-                startSidebarTop = sidebar.offsetTop;
+                const style = window.getComputedStyle(sidebar);
+                startX = parseFloat(style.transform.split(',')[4]) || 0;
+                startY = parseFloat(style.transform.split(',')[5]) || 0;
                 sidebar.style.cursor = "grabbing";
                 e.stopPropagation();
             });
-
+            
             window.addEventListener("mousemove", (e) => {
                 if (!isDraggingSidebar) return;
-
-                let newLeft = startSidebarLeft + (e.clientX - startMouseX);
-                let newTop = startSidebarTop + (e.clientY - startMouseY);
-
-                // 화면 밖 제한
-                newLeft = Math.max(0, Math.min(window.innerWidth - sidebar.offsetWidth, newLeft));
-                newTop = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, newTop));
-
-                sidebar.style.left = newLeft + "px";
-                sidebar.style.top = newTop + "px";
+                const deltaX = e.clientX - startMouseX;
+                const deltaY = e.clientY - startMouseY;
+                sidebar.style.transform = `translate(${startX + deltaX}px, ${startY + deltaY}px)`;
             });
-
+            
             window.addEventListener("mouseup", () => {
                 isDraggingSidebar = false;
                 sidebar.style.cursor = "grab";
