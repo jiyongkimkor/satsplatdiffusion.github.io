@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Force Centered Viewer</title>
+    <title>SatSplat: Follow Data Viewer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -26,39 +26,39 @@
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 1. 장면 전체를 기준으로 바운딩 박스 계산
-                const box = SPLAT.Box3.FromScene(scene);
-                const centerX = (box.min.x + box.max.x) / 2;
-                const centerY = (box.min.y + box.max.y) / 2;
-                const centerZ = (box.min.z + box.max.z) / 2;
-
-                const sizeX = box.max.x - box.min.x;
-                const sizeY = box.max.y - box.min.y;
-                const sizeZ = box.max.z - box.min.z;
-                const maxDim = Math.max(sizeX, sizeY, sizeZ);
-
-                // 2. 모델 원점 이동
-                obj.position.x = -centerX;
-                obj.position.y = -centerY;
-                obj.position.z = -centerZ;
-
-                // 3. 축 정렬 (Z-up -> Y-up)
-                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
-
-                // 4. 카메라 시점 설정 (충분한 거리 확보)
-                const distance = maxDim > 0 ? maxDim * 1.5 : 5;
-                camera.position.x = 0;
-                camera.position.y = distance;
-                camera.position.z = distance;
-
-                if (controls.target) {
-                    controls.target.x = 0;
-                    controls.target.y = 0;
-                    controls.target.z = 0;
-                }
-                controls.update();
+                const splatData = obj.data || (obj.splat && obj.splat.data);
                 
-                status.innerText = "Centered at (0,0,0)";
+                if (splatData && splatData.positions) {
+                    const pos = splatData.positions;
+                    let minX = Infinity, minY = Infinity, minZ = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+                    // 1. 데이터의 현재 위치 파악 (수정하지 않음)
+                    for (let i = 0; i < pos.length; i += 3) {
+                        if(pos[i] < minX) minX = pos[i]; if(pos[i] > maxX) maxX = pos[i];
+                        if(pos[i+1] < minY) minY = pos[i+1]; if(pos[i+1] > maxY) maxY = pos[i+1];
+                        if(pos[i+2] < minZ) minZ = pos[i+2]; if(pos[i+2] > maxZ) maxZ = pos[i+2];
+                    }
+
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    const centerZ = (minZ + maxZ) / 2;
+                    const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+
+                    // 2. 모델은 그대로 두고, 컨트롤러의 타겟(중심점)만 데이터 위치로 이동
+                    controls.target.x = centerX;
+                    controls.target.y = centerY;
+                    controls.target.z = centerZ;
+
+                    // 3. 카메라도 데이터 위치 근처로 이동 (데이터 좌표 + 오프셋)
+                    const offset = maxDim * 1.5;
+                    camera.position.x = centerX + offset;
+                    camera.position.y = centerY + offset;
+                    camera.position.z = centerZ + offset;
+                }
+
+                controls.update();
+                status.innerText = "Camera following data location";
                 
                 const frame = () => {
                     controls.update();
@@ -73,7 +73,7 @@
         
             } catch (e) {
                 console.error(e);
-                status.innerText = "Error: Check Console (F12).";
+                status.innerText = "Error: Check Console.";
             }
         }
         main();
