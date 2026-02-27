@@ -1,40 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Swipe Comparison</title>
+    <title>SatSplat: Diffusion Filtering Comparison</title>
     <script type="module">
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
         let rendererA, rendererB, sceneA, sceneB, camera, controls;
         
+        // Model A: Original Baseline / Model B: Diffusion Filtered Result
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
+        /**
+         * Load PLY model and center it to the origin
+         */
         async function loadModel(url, scene) {
             scene.reset();
+            // Explicitly use PLYLoader for .ply files
             await SPLAT.PLYLoader.LoadAsync(url, scene);
             const obj = scene.objects[0];
+            
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
                 let minX = Infinity, minY = Infinity, minZ = Infinity;
                 let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+                
+                // Calculate bounding box for centering
                 for (let i = 0; i < pos.length; i += 3) {
                     minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
                     minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
                     minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
                 }
-                const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
+                
+                const cX = (minX + maxX) / 2;
+                const cY = (minY + maxY) / 2;
+                const cZ = (minZ + maxZ) / 2;
+                
+                // Translate all positions to origin
                 for (let i = 0; i < pos.length; i += 3) {
                     pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
                 }
             }
+            // Satellite coordinate alignment (Z-up to Y-up)
             obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
         }
 
         async function main() {
             const canvasA = document.getElementById("canvasA");
             const canvasB = document.getElementById("canvasB");
-            const slider = document.getElementById("swipe-slider");
+            const viewerContainer = document.getElementById("viewer-container");
+            const handle = document.getElementById("swipe-handle");
+            const sliderLine = document.getElementById("slider-line");
 
             sceneA = new SPLAT.Scene();
             sceneB = new SPLAT.Scene();
@@ -43,39 +59,84 @@
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
+            /**
+             * Maintain square aspect ratio and center the viewer
+             */
             const resize = () => {
-                const w = window.innerWidth - 280;
-                const h = window.innerHeight;
-                rendererA.setSize(w, h, Math.min(window.devicePixelRatio, 1.5));
-                rendererB.setSize(w, h, Math.min(window.devicePixelRatio, 1.5));
+                const sidebarWidth = 280;
+                const availableWidth = window.innerWidth - sidebarWidth;
+                const availableHeight = window.innerHeight;
+                
+                // Determine maximum square size with padding
+                const size = Math.min(availableWidth, availableHeight) - 40;
+                
+                rendererA.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
+                rendererB.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
+                
+                const paddingLeft = (availableWidth - size) / 2;
+                const paddingTop = (availableHeight - size) / 2;
+                
+                viewerContainer.style.width = `${size}px`;
+                viewerContainer.style.height = `${size}px`;
+                viewerContainer.style.transform = `translate(${paddingLeft}px, ${paddingTop}px)`;
             };
+            
             window.addEventListener("resize", resize);
             resize();
 
-            // Single controller for both (since they overlap)
-            controls = new SPLAT.OrbitControls(camera, canvasB); // Use Top canvas for interaction
+            // OrbitControls attached to the top layer for interaction
+            controls = new SPLAT.OrbitControls(camera, canvasB);
             camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            // Slider Interaction
-            slider.addEventListener("input", (e) => {
-                const val = e.target.value;
+            /**
+             * Handle swipe logic: 
+             * Left side shows Diffusion Filtered (B), Right side shows Original (A)
+             */
+            let isDragging = false;
+            
+            const setSwipePercentage = (x) => {
+                const rect = viewerContainer.getBoundingClientRect();
+                let percentage = (x - rect.left) / rect.width;
+                percentage = Math.max(0, Math.min(1, percentage));
+                const val = percentage * 100;
+                
+                // canvasB (Diffusion) is revealed from the left to the handle position
                 canvasB.style.clipPath = `inset(0 ${100 - val}% 0 0)`;
-                document.getElementById("slider-line").style.left = `${val}%`;
-            });
+                sliderLine.style.left = `${val}%`;
+            };
 
-            document.getElementById("status").innerText = "Loading Models...";
+            // Event Listeners for interactive handle
+            const startDrag = (e) => { isDragging = true; e.preventDefault(); };
+            const endDrag = () => { isDragging = false; };
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const x = e.clientX || (e.touches && e.touches[0].clientX);
+                setSwipePercentage(x);
+            };
+
+            handle.addEventListener("mousedown", startDrag);
+            window.addEventListener("mouseup", endDrag);
+            window.addEventListener("mousemove", onMove);
+            handle.addEventListener("touchstart", startDrag);
+            window.addEventListener("touchend", endDrag);
+            window.addEventListener("touchmove", onMove);
+
+            document.getElementById("status").innerText = "Downloading LFS Data...";
+            
             try {
+                // Load both baseline and filtered models
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
                     loadModel(MODEL_B_DEFAULT, sceneB)
                 ]);
-                document.getElementById("status").innerText = "Swipe to Compare";
+                document.getElementById("status").innerText = "Ready: Drag Handle to Compare";
             } catch (err) {
                 console.error(err);
-                document.getElementById("status").innerText = "Load Error.";
+                document.getElementById("status").innerText = "Error: Check Dataset Access";
             }
 
+            // Render loop synchronizing both scenes with one camera
             const frame = () => {
                 controls.update();
                 rendererA.render(sceneA, camera);
@@ -89,48 +150,82 @@
     </script>
     <style>
         :root { --accent: #007aff; --border: #ececec; }
-        body { margin: 0; display: flex; background: #fff; font-family: system-ui; overflow: hidden; }
+        body { margin: 0; display: flex; background: #fff; color: #333; font-family: -apple-system, sans-serif; overflow: hidden; }
         
-        #sidebar { width: 280px; background: #fcfcfc; padding: 40px 25px; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 1000; }
-        
-        #viewer-container { flex: 1; position: relative; background: #eee; overflow: hidden; }
-        
-        /* Overlay Canvases */
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #canvasA { z-index: 1; } /* Base Model (Step 1) */
-        #canvasB { z-index: 2; clip-path: inset(0 50% 0 0); } /* Swipe Model (Step 2) */
-
-        /* Swipe UI */
-        #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--accent); z-index: 10; pointer-events: none; }
-        #swipe-slider { 
-            position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
-            width: 300px; z-index: 20; cursor: pointer;
+        #sidebar { 
+            width: 280px; 
+            background: #fcfcfc; 
+            padding: 40px 25px; 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 1000; 
         }
+        
+        #viewer-area { flex: 1; position: relative; background: #f0f0f0; }
+        
+        #viewer-container { 
+            position: absolute; 
+            background: #000; 
+            border: 1px solid var(--border); 
+            border-radius: 4px; 
+            overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        
+        /* Layered Canvases */
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #canvasA { z-index: 1; } /* Original Baseline */
+        #canvasB { z-index: 2; clip-path: inset(0 50% 0 0); } /* Diffusion Filtered */
 
-        h3 { color: var(--accent); margin: 0; font-size: 1.2rem; }
-        #status { font-size: 0.8rem; color: #999; margin-bottom: 30px; }
-        .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 15px; font-size: 0.9rem; }
-        .info-card b { color: var(--accent); display: block; font-size: 0.7rem; text-transform: uppercase; }
+        /* Swipe UI Elements */
+        #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; z-index: 10; pointer-events: none; }
+        #swipe-handle { 
+            position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
+            width: 44px; height: 44px; background: #fff; border: 1px solid var(--border);
+            border-radius: 50%; z-index: 20; cursor: col-resize; pointer-events: all;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        #swipe-handle::after { content: '↔'; color: var(--accent); font-weight: bold; font-size: 1.2rem; }
+
+        h3 { color: var(--accent); margin: 0 0 5px 0; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; }
+        #status { font-size: 0.8rem; color: #999; margin-bottom: 40px; display: block; }
+        
+        .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 15px; }
+        .info-card b { color: var(--accent); display: block; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
+        .info-card p { margin: 0; font-size: 0.85rem; font-weight: 500; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h3>SatSplat Swipe</h3>
-        <span id="status">Initializing...</span>
+        <h3>SatSplat</h3>
+        <span id="status">Syncing Viewports...</span>
         
-        <div class="info-card"><b>Right side</b>Step 1 (Base)</div>
-        <div class="info-card"><b>Left side (Overlay)</b>Step 2 (Baked)</div>
+        <div class="info-card">
+            <b>Left (Overlay)</b>
+            <p>Step 2: Diffusion Filtering</p>
+        </div>
+        <div class="info-card">
+            <b>Right (Base)</b>
+            <p>Step 1: Original Model</p>
+        </div>
 
-        <div style="margin-top: auto; font-size: 0.8rem; color: #777; line-height: 1.6;">
-            하단의 슬라이더를 움직여 두 모델의 경계선을 조절하세요.
+        <div style="margin-top: auto; font-size: 0.75rem; color: #888; line-height: 1.6;">
+            [How to Compare]<br>
+            Drag the center handle horizontally to inspect the denoising effect of diffusion filtering.
         </div>
     </div>
 
-    <div id="viewer-container">
-        <canvas id="canvasA"></canvas>
-        <canvas id="canvasB"></canvas>
-        <div id="slider-line"></div>
-        <input type="range" id="swipe-slider" min="0" max="100" value="50">
+    <div id="viewer-area">
+        <div id="viewer-container">
+            <canvas id="canvasA"></canvas>
+            <canvas id="canvasB"></canvas>
+            
+            <div id="slider-line">
+                <div id="swipe-handle"></div>
+            </div>
+        </div>
     </div>
 </body>
 </html>
