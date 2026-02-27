@@ -30,13 +30,13 @@
                 // X축으로 90도 회전시켜 바닥에 깔고, 
                 // Y축(또는 Z축)으로 180도 회전시켜 뒷면 대신 앞면이 보이게 조정
                 const xRotation = -Math.PI / 2; // 바닥 평면화
-                const yRotation = Math.PI;      // 180도 회전하여 앞면 노출
+                const yRotation = Math.PI / 2;      // 180도 회전하여 앞면 노출
                 obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(xRotation, yRotation, 0));
 
                 // 2. 카메라 위치 (모델을 조망하기 좋은 위치)
                 camera.position.x = 0.0;
-                camera.position.y = 10.0;
-                camera.position.z = 15.0;
+                camera.position.y = 3.0;
+                camera.position.z = -2.0;
 
                 controls.update();
                 status.innerText = "Rotation Fixed: Viewing Front Surface";
