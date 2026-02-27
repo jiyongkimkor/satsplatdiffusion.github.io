@@ -18,15 +18,12 @@
                 controls.orbitSpeed = 5.0;
                 controls.zoomSpeed = 3.0;
 
-                // 불러올 파일 리스트 (download 링크 사용)
-                // 만약 이래도 안된다면 데이터셋이 'Public'인지 반드시 확인해라.
                 const models = [
                     { name: "JAX_068", url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat" },
                 ];
 
                 status.innerText = "Connecting to Hugging Face...";
 
-                // 여러 파일을 동시에 로드하는 로직
                 const loadTasks = models.map(async (model, index) => {
                     try {
                         // 개별 모델 로드
@@ -45,10 +42,10 @@
 
                 await Promise.all(loadTasks);
 
-                camera.position = new SPLAT.Vector3(0, 5, 10);
-                camera.position = new SPLAT.Vector3(0, 2, 2);
-                controls.target = new SPLAT.Vector3(0, 0, 0); // 카메라가 바라볼 지점 설정
-                controls.update(); // 변경사항 반영
+                const center = obj.position;
+                camera.position.set(center.x, center.y, center.z + 2);
+                controls.target.copy(center); 
+                controls.update();
                 status.innerText = "All Models Loaded! Drag to Rotate";
                 
                 const frame = () => {
