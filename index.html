@@ -19,7 +19,7 @@
                 controls.zoomSpeed = 1.5;
 
                 const models = [
-                    { name: "JAX_068", url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/download/main/JAX_068.splat" },
+                    { name: "JAX_068", url: url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true },
                 ];
 
                 status.innerText = "Connecting to Hugging Face...";
@@ -65,8 +65,17 @@
                 const loadedObjects = await Promise.all(loadTasks);
                 
                 // 시점 초기화
-                camera.position.set(0, 2, 5); 
-                controls.target.set(0, 0, 0); 
+                camera.position.x = 0;
+                camera.position.y = 2;
+                camera.position.z = 5;
+
+                // controls.target도 동일하게 처리
+                if (controls.target) {
+                    controls.target.x = 0;
+                    controls.target.y = 0;
+                    controls.target.z = 0;
+                }
+                
                 controls.update();
 
                 status.innerText = "Success! Drag to Rotate";
