@@ -20,24 +20,29 @@
 
                 status.innerText = "Loading Model...";
 
+                // 모델 로드 대기
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 1. 회전값 수정: 
-                // X축으로 90도 회전시켜 바닥에 깔고, 
-                // Y축(또는 Z축)으로 180도 회전시켜 뒷면 대신 앞면이 보이게 조정
+                // 1. 모델 회전: X축 +90도 회전 (고도 Z를 웹의 위 Y로 변환)
                 obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0.0, 0.0));
 
-                // 2. 카메라 위치 (모델을 조망하기 좋은 위치)
+                // 2. 카메라 초기 위치 설정 (옆면 시점)
                 camera.position.x = 1.0;
                 camera.position.y = -1.50;
                 camera.position.z = 0.0;
+
+                // 3. 컨트롤러 생성 및 설정
+                // 카메라 좌표가 설정된 후 생성해야 초기 시점이 튀지 않습니다.
                 const controls = new SPLAT.OrbitControls(camera, canvas);
-                controls.target = new SPLAT.Vector3(0, 0, 0);
-                controls.update();
-                status.innerText = "Rotation Fixed: Viewing Front Surface";
+                controls.damping = 0.15;
+                controls.target = new SPLAT.Vector3(0, 0, 0); // 모델 중심을 바라보게 함
+                controls.update(); // 변경된 카메라/타겟 값 반영
+
+                status.innerText = "View Fixed: Side Perspective";
                 
+                // 4. 렌더링 루프
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
@@ -45,6 +50,7 @@
                 };
                 requestAnimationFrame(frame);
 
+                // 창 크기 조절 대응
                 window.addEventListener("resize", () => {
                     renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 });
