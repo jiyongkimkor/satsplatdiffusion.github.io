@@ -13,7 +13,6 @@
                 const renderer = new SPLAT.WebGLRenderer(canvas);
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
-                const controls = new SPLAT.OrbitControls(camera, canvas);
 
                 renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 controls.damping = 0.15;
