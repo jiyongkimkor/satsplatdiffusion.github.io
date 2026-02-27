@@ -38,7 +38,7 @@
                 const controls = new SPLAT.OrbitControls(camera, canvas);
                 controls.damping = 0.15;
                 controls.target = new SPLAT.Vector3(0, 0, 0); // 모델 중심을 바라보게 함
-                camera.position.set(1.0, -1.5, 0.0);
+                camera.position = new SPLAT.Vector3(1.0, -1.5, 0.0);
                 controls.update(); // 변경된 카메라/타겟 값 반영
 
                 status.innerText = "View Fixed: Side Perspective";
