@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Follow Data Viewer</title>
+    <title>SatSplat: Force Centered Viewer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -20,20 +20,19 @@
 
                 const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
 
-                status.innerText = "Loading Model...";
+                status.innerText = "Connecting to Hugging Face...";
 
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                const splatData = obj.data || (obj.splat && obj.splat.data);
-                
-                if (splatData && splatData.positions) {
-                    const pos = splatData.positions;
+                const data = obj.data || (obj.splat && obj.splat.data);
+                if (data && data.positions) {
+                    const pos = data.positions;
                     let minX = Infinity, minY = Infinity, minZ = Infinity;
                     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
-                    // 1. 데이터의 현재 위치 파악 (수정하지 않음)
+                    // 1. 바운딩 박스 계산
                     for (let i = 0; i < pos.length; i += 3) {
                         if(pos[i] < minX) minX = pos[i]; if(pos[i] > maxX) maxX = pos[i];
                         if(pos[i+1] < minY) minY = pos[i+1]; if(pos[i+1] > maxY) maxY = pos[i+1];
@@ -45,20 +44,32 @@
                     const centerZ = (minZ + maxZ) / 2;
                     const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
 
-                    // 2. 모델은 그대로 두고, 컨트롤러의 타겟(중심점)만 데이터 위치로 이동
-                    controls.target.x = centerX;
-                    controls.target.y = centerY;
-                    controls.target.z = centerZ;
+                    // 2. 모든 점의 위치를 원점 기준으로 강제 이동
+                    for (let i = 0; i < pos.length; i += 3) {
+                        pos[i] -= centerX;
+                        pos[i+1] -= centerY;
+                        pos[i+2] -= centerZ;
+                    }
 
-                    // 3. 카메라도 데이터 위치 근처로 이동 (데이터 좌표 + 오프셋)
-                    const offset = maxDim * 1.5;
-                    camera.position.x = centerX + offset;
-                    camera.position.y = centerY + offset;
-                    camera.position.z = centerZ + offset;
+                    // 엔진에 데이터 수정 알림
+                    if (obj.updateData) obj.updateData();
+
+                    // 3. 축 회전 및 카메라 배치
+                    obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
+                    
+                    // 모델 크기에 맞춰 카메라 거리 조절 (기존 1.0은 너무 가까울 수 있음)
+                    const dist = maxDim > 0 ? maxDim * 1.2 : 2.0;
+                    camera.position.x = dist;
+                    camera.position.y = dist;
+                    camera.position.z = dist;
+
+                    if (controls.target) {
+                        controls.target.x = 0; controls.target.y = 0; controls.target.z = 0;
+                    }
                 }
 
                 controls.update();
-                status.innerText = "Camera following data location";
+                status.innerText = "Centered at (0,0,0) - Render Active";
                 
                 const frame = () => {
                     controls.update();
@@ -73,7 +84,7 @@
         
             } catch (e) {
                 console.error(e);
-                status.innerText = "Error: Check Console.";
+                status.innerText = "Error: Check Console (F12).";
             }
         }
         main();
