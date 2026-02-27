@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Axis Helper Fixed</title>
+    <title>SatSplat: Fixed Orientation Viewer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -18,70 +18,28 @@
                 renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 controls.damping = 0.15;
 
-                // --- 1. 축 가시화 함수 (SPLAT.Splat 사용) ---
-                function createAxis(color, direction, length = 20) {
-                    const points = 200;
-                    const positions = new Float32Array(points * 3);
-                    const colors = new Uint8Array(points * 4);
-                    const scales = new Float32Array(points * 3);
-                    const rotations = new Float32Array(points * 4);
-                    const opacities = new Float32Array(points);
-
-                    for (let i = 0; i < points; i++) {
-                        const t = (i / points) * length;
-                        positions[i * 3] = direction.x * t;
-                        positions[i * 3 + 1] = direction.y * t;
-                        positions[i * 3 + 2] = direction.z * t;
-                        
-                        colors[i * 4] = color.r;
-                        colors[i * 4 + 1] = color.g;
-                        colors[i * 4 + 2] = color.b;
-                        colors[i * 4 + 3] = 255;
-
-                        scales[i * 3] = 0.05; 
-                        scales[i * 3 + 1] = 0.05; 
-                        scales[i * 3 + 2] = 0.05;
-                        
-                        rotations[i * 4] = 1; // W component
-                        opacities[i] = 1.0;
-                    }
-
-                    const data = new SPLAT.SplatData({
-                        positions,
-                        colors,
-                        scales,
-                        rotations,
-                        opacities
-                    });
-                    
-                    return new SPLAT.Splat(data);
-                }
-
-                // 1.2.0 버전에서는 addObject를 사용합니다.
-                scene.addObject(createAxis({r: 255, g: 0, b: 0}, {x: 1, y: 0, z: 0})); // X: 빨강
-                scene.addObject(createAxis({r: 0, g: 255, b: 0}, {x: 0, y: 1, z: 0})); // Y: 초록
-                scene.addObject(createAxis({r: 0, g: 0, b: 255}, {x: 0, y: 0, z: 1})); // Z: 파랑
-
-                // --- 2. 모델 로드 및 회전 ---
                 const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
+
                 status.innerText = "Loading Model...";
 
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // SuperSplat 설정: X -90, Y -90
-                const rotX = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
-                const rotY = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, -Math.PI / 2, 0));
-                obj.rotation = rotY.multiply(rotX);
+                // 1. 회전값 수정: 
+                // X축으로 90도 회전시켜 바닥에 깔고, 
+                // Y축(또는 Z축)으로 180도 회전시켜 뒷면 대신 앞면이 보이게 조정
+                const xRotation = -Math.PI / 2; // 바닥 평면화
+                const yRotation = Math.PI;      // 180도 회전하여 앞면 노출
+                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(xRotation, yRotation, 0));
 
-                // --- 3. 카메라 위치 ---
-                camera.position.x = 10;
-                camera.position.y = 10;
-                camera.position.z = 10;
+                // 2. 카메라 위치 (모델을 조망하기 좋은 위치)
+                camera.position.x = 0.0;
+                camera.position.y = 10.0;
+                camera.position.z = 15.0;
 
                 controls.update();
-                status.innerText = "Axes Loaded: Red(X), Green(Y), Blue(Z)";
+                status.innerText = "Rotation Fixed: Viewing Front Surface";
                 
                 const frame = () => {
                     controls.update();
@@ -96,23 +54,23 @@
         
             } catch (e) {
                 console.error(e);
-                status.innerText = "Error: Check F12 Console.";
+                status.innerText = "Error: Check Console.";
             }
         }
         main();
     </script>
     <style>
-        body { margin: 0; background: #050505; color: white; font-family: sans-serif; overflow: hidden; }
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
         #container { width: 100vw; height: 85vh; background: #000; display: block; }
-        .info { padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; text-align: center; }
-        h3 { margin: 0 0 5px 0; color: #4AF; }
-        #status { margin: 0; font-size: 0.9em; color: #aaa; }
+        .info { padding: 15px; background: #222; border-bottom: 1px solid #444; }
+        h3 { margin: 0 0 5px 0; color: #4AF; letter-spacing: 1px; }
+        #status { margin: 0; font-size: 0.9em; color: #aaa; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="info">
-        <h3>SatSplat Axis Helper</h3>
-        <p id="status">Initializing...</p>
+        <h3>SatSplat Viewer</h3>
+        <p id="status">Initializing Engine...</p>
     </div>
     <canvas id="container"></canvas>
 </body>
