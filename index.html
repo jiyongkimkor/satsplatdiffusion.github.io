@@ -78,12 +78,11 @@
                 camera.position.y = 0.0; // 수평 유지
                 camera.position.z = 0.0; // 위에서 내려다보는 높이 (Z축!)
 
-                if (controls.target) {
-                    controls.target.x = 0;
-                    controls.target.y = 0;
-                    controls.target.z = 0;
-                }
-                
+                const controls = new SPLAT.OrbitControls(camera, canvas);
+
+                controls.target.x = 0;
+                controls.target.y = 0;
+                controls.target.z = 0;
                 controls.update();
                 status.innerText = "Success! Viewing from Top-Right";
                 
