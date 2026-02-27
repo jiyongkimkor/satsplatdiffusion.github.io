@@ -26,24 +26,27 @@
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
 
-                // 1. 바운딩 박스 데이터 추출
-                const box = obj.data.boundingBox;
-                const centerX = box.center.x;
-                const centerY = box.center.y;
-                const centerZ = box.center.z;
-                const maxDim = Math.max(box.size.x, box.size.y, box.size.z);
+                // 1. 장면 전체를 기준으로 바운딩 박스 계산
+                const box = SPLAT.Box3.FromScene(scene);
+                const centerX = (box.min.x + box.max.x) / 2;
+                const centerY = (box.min.y + box.max.y) / 2;
+                const centerZ = (box.min.z + box.max.z) / 2;
 
-                // 2. 모델 원점 이동 (데이터 배열 수정 대신 position 속성 사용)
+                const sizeX = box.max.x - box.min.x;
+                const sizeY = box.max.y - box.min.y;
+                const sizeZ = box.max.z - box.min.z;
+                const maxDim = Math.max(sizeX, sizeY, sizeZ);
+
+                // 2. 모델 원점 이동
                 obj.position.x = -centerX;
                 obj.position.y = -centerY;
                 obj.position.z = -centerZ;
 
-                // 3. 위성 데이터 축 정렬 (Z-up을 Y-up 환경에 맞게 회전)
+                // 3. 축 정렬 (Z-up -> Y-up)
                 obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
 
-                // 4. 카메라 시점 설정
-                // 모델 크기(maxDim)에 비례하여 적정 거리 확보
-                const distance = maxDim * 1.5;
+                // 4. 카메라 시점 설정 (충분한 거리 확보)
+                const distance = maxDim > 0 ? maxDim * 1.5 : 5;
                 camera.position.x = distance;
                 camera.position.y = distance;
                 camera.position.z = distance;
@@ -55,7 +58,7 @@
                 }
                 controls.update();
                 
-                status.innerText = "Centered at (0,0,0) - View Adjusted";
+                status.innerText = "Centered at (0,0,0)";
                 
                 const frame = () => {
                     controls.update();
