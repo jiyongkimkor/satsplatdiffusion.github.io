@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Fixed Right-Side View</title>
+    <title>SatSplat: High-Fidelity Viewer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -15,9 +15,9 @@
                 const camera = new SPLAT.Camera();
                 const controls = new SPLAT.OrbitControls(camera, canvas);
         
-                // 최적화 설정
                 const devicePixelRatio = Math.min(window.devicePixelRatio, 1.5);
                 renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
+                
                 controls.orbitSpeed = 1.5;
                 controls.zoomSpeed = 1.0;
                 controls.damping = 0.15;
@@ -47,29 +47,22 @@
                             const positions = data.positions;
                             let avgX = 0, avgY = 0, avgZ = 0;
                             const count = positions.length / 3;
-
                             for (let i = 0; i < positions.length; i += 3) {
                                 avgX += positions[i];
                                 avgY += positions[i + 1];
                                 avgZ += positions[i + 2];
                             }
-                            
                             const center = { x: avgX / count, y: avgY / count, z: avgZ / count };
                             
-                            // 3. rotate 함수 에러 해결: 수학적 축 변환 적용
-                            // X축 90도 회전 시: x -> x, y -> z, z -> -y
+                            // 3. 축 변환 적용 (x -> x, y -> z, z -> -y)
                             const rotatedCenterX = center.x;
                             const rotatedCenterY = center.z;
                             const rotatedCenterZ = -center.y;
                             
-                            // 모델을 원점으로 정렬
                             obj.position.x = -rotatedCenterX;
                             obj.position.y = -rotatedCenterY;
                             obj.position.z = -rotatedCenterZ;
-
-                            console.log(`Model ${model.name} manually centered.`);
                         }
-                        
                         return obj; 
                     } catch (err) {
                         console.error(`Failed to load ${model.name}:`, err);
@@ -79,11 +72,11 @@
 
                 await Promise.all(loadTasks);
                 
-                // 4. 시점 초기화 (오른쪽 정측면 뷰)
-                // 정규화 좌표계(-1 ~ 1)이므로 2.0 정도면 충분히 오른쪽에서 전체를 봅니다.
-                camera.position.x = 1.5; 
-                camera.position.y = 1.5;
-                camera.position.z = 0.0;
+                // 4. 시점 초기화 (오른쪽 측면 + 위에서 내려다보기)
+                // 회전된 좌표계(X-90도)에서는 Z축이 "높이" 역할을 합니다.
+                camera.position.x = 2.0; // 오른쪽 사이드로 이동
+                camera.position.y = 0.0; // 수평 유지
+                camera.position.z = 1.5; // 위에서 내려다보는 높이 (Z축!)
 
                 if (controls.target) {
                     controls.target.x = 0;
@@ -92,7 +85,7 @@
                 }
                 
                 controls.update();
-                status.innerText = "Success! Viewing from the Right Side";
+                status.innerText = "Success! Viewing from Top-Right";
                 
                 const frame = () => {
                     controls.update();
