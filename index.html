@@ -15,8 +15,9 @@
                 const camera = new SPLAT.Camera();
                 const controls = new SPLAT.OrbitControls(camera, canvas);
         
-                controls.orbitSpeed = 5.0;
-                controls.zoomSpeed = 3.0;
+                // 정규화 좌표계에서는 감도가 너무 높으면 제어가 힘드므로 소폭 조정
+                controls.orbitSpeed = 2.0;
+                controls.zoomSpeed = 1.5;
 
                 const models = [
                     { name: "JAX_068", url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat" },
@@ -24,29 +25,40 @@
 
                 status.innerText = "Connecting to Hugging Face...";
 
-                const loadTasks = models.map(async (model, index) => {
+                const loadTasks = models.map(async (model) => {
                     try {
-                        // 개별 모델 로드
                         const obj = await SPLAT.Loader.LoadAsync(model.url, scene, (progress) => {
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        // 모델이 겹치지 않게 옆으로 살짝 이동 (선택 사항)
-                        // obj.position.x = index * 5; 
+                        // 위성 데이터 축 보정
                         obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
-                        console.log(`${model.name} loaded successfully.`);
+                        return obj; 
                     } catch (err) {
                         console.warn(`Failed to load ${model.name}:`, err);
+                        return null;
                     }
                 });
 
-                await Promise.all(loadTasks);
+                // 모든 로드 완료 대기
+                const loadedObjects = await Promise.all(loadTasks);
+                const firstObj = loadedObjects.find(o => o !== null);
 
-                const center = obj.position;
-                camera.position.set(center.x, center.y, center.z);
-                controls.target.copy(center); 
-                controls.update();
-                status.innerText = "All Models Loaded! Drag to Rotate";
+                if (firstObj) {
+                    const center = firstObj.position;
+                    
+                    // 정규화 좌표계(-1 ~ 1) 맞춤형 카메라 배치
+                    // 모델 중심에서 약간 위(Y), 약간 뒤(Z)로 배치하여 모델을 조망
+                    camera.position.set(center.x, center.y + 1.0, center.z + 2.5);
+                    
+                    // 카메라가 바라볼 지점을 모델 중심으로 설정
+                    controls.target.copy(center); 
+                    controls.update();
+                    
+                    status.innerText = "Success! Drag to Rotate";
+                } else {
+                    status.innerText = "No models were loaded.";
+                }
                 
                 const frame = () => {
                     controls.update();
@@ -57,7 +69,7 @@
         
             } catch (e) {
                 console.error(e);
-                status.innerHTML = "Error: Check Console (F12).<br>Make sure the dataset is PUBLIC on Hugging Face.";
+                status.innerHTML = "Error: Check Console (F12).<br>Make sure the dataset is PUBLIC.";
             }
         }
         main();
