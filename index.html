@@ -7,15 +7,32 @@
 
         let rendererA, rendererB, sceneA, sceneB, cameraA, cameraB, controlsA;
         
-        // Default models from Hugging Face
+        // Default models from Hugging Face (Use direct download links)
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
+        /**
+         * Robust model loader that handles redirects and forces file extension recognition.
+         */
         async function loadModel(url, scene) {
             scene.reset(); // Clear existing scene data
-            const obj = await SPLAT.Loader.LoadAsync(url, scene);
+
+            // 1. Fetch data manually to handle potential CORS/Redirect issues
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            // Force centering the model data
+            const blob = await response.blob();
+
+            // 2. Wrap blob in a File object to explicitly provide the extension.
+            // gsplat.js uses the file extension to determine the correct parser (PLY vs SPLAT).
+            const isPly = url.toLowerCase().includes(".ply");
+            const fileName = isPly ? "model.ply" : "model.splat";
+            const file = new File([blob], fileName, { type: blob.type });
+
+            // 3. Load from the File object
+            const obj = await SPLAT.Loader.LoadAsync(file, scene);
+            
+            // 4. Force centering the model data
             const data = obj.data || (obj.splat && obj.splat.data);
             if (data && data.positions) {
                 const pos = data.positions;
@@ -39,7 +56,7 @@
                     pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
                 }
             }
-            // Apply coordinate system alignment
+            // Align coordinate system (Z-up to Y-up)
             obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
         }
 
@@ -55,7 +72,7 @@
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
-            // Responsive view handling
+            // Responsive viewport handling
             const resize = () => {
                 const w = (window.innerWidth - 250) / 2;
                 const h = window.innerHeight;
@@ -65,28 +82,28 @@
             window.addEventListener("resize", resize);
             resize();
 
-            // Initialize OrbitControls on Canvas A
+            // Initialize OrbitControls on the left viewport
             controlsA = new SPLAT.OrbitControls(cameraA, canvasA);
             
-            // Override default camera position and set target
+            // Set initial camera position (Override defaults)
             cameraA.position = new SPLAT.Vector3(0.75, -1.5, 0.0);
             controlsA.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
             controlsA.update();
 
-            // Initial model loading
-            document.getElementById("status").innerText = "Loading Step 1 & 2...";
+            // Initial model loading from URLs
+            document.getElementById("status").innerText = "Downloading Models...";
             try {
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
                     loadModel(MODEL_B_DEFAULT, sceneB)
                 ]);
-                document.getElementById("status").innerText = "Comparison Ready";
+                document.getElementById("status").innerText = "Step 1 vs Step 2 Loaded";
             } catch (err) {
                 console.error(err);
-                document.getElementById("status").innerText = "Load Error. See Console.";
+                document.getElementById("status").innerText = "Load Error. Check Console.";
             }
 
-            // Local file upload listeners
+            // UI Listeners for local file uploads
             document.getElementById('fileA').onchange = async (e) => {
                 const url = URL.createObjectURL(e.target.files[0]);
                 await loadModel(url, sceneA);
@@ -96,11 +113,11 @@
                 await loadModel(url, sceneB);
             };
 
-            // Main rendering loop
+            // Unified rendering loop
             const frame = () => {
                 controlsA.update();
                 
-                // Synchronize Camera B with Camera A's state
+                // Synchronize Camera B with Camera A's state for identical viewing angle
                 cameraB.position = cameraA.position.clone();
                 cameraB.rotation = cameraA.rotation.clone();
 
@@ -114,15 +131,16 @@
         main();
     </script>
     <style>
-        body { margin: 0; display: flex; background: #000; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        #sidebar { width: 250px; background: #111; padding: 20px; border-right: 1px solid #333; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+        body { margin: 0; display: flex; background: #000; color: white; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; }
+        #sidebar { width: 250px; background: #111; padding: 20px; border-right: 1px solid #333; box-shadow: 2px 0 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
         #viewer-container { flex: 1; display: flex; gap: 2px; background: #222; }
-        canvas { width: 50%; height: 100vh; background: #000; }
+        canvas { width: 50%; height: 100vh; background: #000; cursor: crosshair; }
         .upload-box { margin-bottom: 20px; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; }
         h3 { color: #4AF; font-size: 1.1em; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
         #status { font-size: 0.85em; color: #888; margin-bottom: 20px; display: block; font-style: italic; }
         label { font-size: 0.75em; color: #4AF; font-weight: bold; text-transform: uppercase; }
         input[type="file"] { width: 100%; margin-top: 8px; font-size: 0.8em; color: #666; cursor: pointer; }
+        .controls-info { font-size: 0.75em; color: #444; margin-top: auto; line-height: 1.6; border-top: 1px solid #222; padding-top: 20px; }
     </style>
 </head>
 <body>
@@ -140,12 +158,12 @@
             <input type="file" id="fileB" accept=".ply,.splat">
         </div>
 
-        <div style="font-size: 0.75em; color: #444; margin-top: 40px; line-height: 1.6;">
-            [Controls]<br>
-            * Left Click Drag: Rotate<br>
-            * Right Click Drag: Pan<br>
-            * Scroll Wheel: Zoom<br><br>
-            Camera sync is enabled by default. Control the left viewport to update both views.
+        <div class="controls-info">
+            <strong>[Mouse Controls]</strong><br>
+            • Left Drag: Orbit/Rotate<br>
+            • Right Drag: Pan/Move<br>
+            • Scroll: Zoom In/Out<br><br>
+            Views are synchronized.
         </div>
     </div>
     <div id="viewer-container">
