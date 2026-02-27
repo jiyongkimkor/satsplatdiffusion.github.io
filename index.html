@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: High-Fidelity Viewer</title>
+    <title>SatSplat: Force Centered Viewer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -14,27 +14,20 @@
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
 
-                // [중요] OrbitControls 생성 전에 카메라의 초기 위치를 미리 잡아줍니다.
-                // x: 오른쪽(+), y: 수평(0), z: 위에서 내려다보는 높이(+)
+                // 1. 초기 카메라 위치 (데이터가 어디 있든 일단 멀리서 조망)
                 camera.position.x = 2.0; 
-                camera.position.y = 0.0;
-                camera.position.z = 1.2; 
+                camera.position.y = 2.0;
+                camera.position.z = 2.0; 
 
                 const controls = new SPLAT.OrbitControls(camera, canvas);
+                renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 
-                const devicePixelRatio = Math.min(window.devicePixelRatio, 1.5);
-                renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
-                
-                controls.orbitSpeed = 1.5;
-                controls.zoomSpeed = 1.0;
                 controls.damping = 0.15;
 
-                const models = [
-                    { 
-                        name: "JAX_068", 
-                        url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true" 
-                    }
-                ];
+                const models = [{ 
+                    name: "JAX_068", 
+                    url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true" 
+                }];
 
                 status.innerText = "Connecting to Hugging Face...";
 
@@ -44,48 +37,59 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        const rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
-                        obj.rotation = rotation;
-                        
                         const data = obj.data || (obj.splat && obj.splat.data);
                         if (data && data.positions) {
-                            const positions = data.positions;
-                            let avgX = 0, avgY = 0, avgZ = 0;
-                            const count = positions.length / 3;
-                            for (let i = 0; i < positions.length; i += 3) {
-                                avgX += positions[i];
-                                avgY += positions[i + 1];
-                                avgZ += positions[i + 2];
+                            const pos = data.positions;
+                            const count = pos.length / 3;
+                            let minX = Infinity, minY = Infinity, minZ = Infinity;
+                            let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+                            // 바운딩 박스 계산
+                            for (let i = 0; i < pos.length; i += 3) {
+                                if(pos[i] < minX) minX = pos[i]; if(pos[i] > maxX) maxX = pos[i];
+                                if(pos[i+1] < minY) minY = pos[i+1]; if(pos[i+1] > maxY) maxY = pos[i+1];
+                                if(pos[i+2] < minZ) minZ = pos[i+2]; if(pos[i+2] > maxZ) maxZ = pos[i+2];
                             }
-                            const center = { x: avgX / count, y: avgY / count, z: avgZ / count };
+
+                            const centerX = (minX + maxX) / 2;
+                            const centerY = (minY + maxY) / 2;
+                            const centerZ = (minZ + maxZ) / 2;
+
+                            // [핵심] 모든 점의 위치를 원점(0,0,0) 기준으로 강제 이동
+                            for (let i = 0; i < pos.length; i += 3) {
+                                pos[i] -= centerX;
+                                pos[i+1] -= centerY;
+                                pos[i+2] -= centerZ;
+                            }
+
+                            // 데이터가 수정되었음을 엔진에 알림 (라이브러리 버전에 따라 필요할 수 있음)
+                            if (obj.updateData) obj.updateData();
+
+                            // 축 회전 적용 (원점으로 보낸 후 회전)
+                            obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                             
-                            // 축 변환 적용 (x -> x, y -> z, z -> -y)
-                            const rotatedCenterX = center.x;
-                            const rotatedCenterY = center.z;
-                            const rotatedCenterZ = -center.y;
-                            
-                            obj.position.x = -rotatedCenterX;
-                            obj.position.y = -rotatedCenterY;
-                            obj.position.z = -rotatedCenterZ;
+                            console.log("Model re-centered to (0,0,0)");
                         }
                         return obj; 
                     } catch (err) {
-                        console.error(`Failed to load ${model.name}:`, err);
+                        console.error(err);
                         return null;
                     }
                 });
 
                 await Promise.all(loadTasks);
                 
-                // 타겟(바라보는 곳)을 모델의 중심(0,0,0)으로 고정
+                // 2. 이제 모델이 무조건 (0,0,0)에 있으므로 카메라를 오른쪽 위로 배치
+                camera.position.x = 1.5; // 오른쪽
+                camera.position.y = 0.0; // 수평
+                camera.position.z = 1.0; // 위 (X-90도 회전 후엔 Z가 높이)
+
                 if (controls.target) {
-                    controls.target.x = 0;
-                    controls.target.y = 0;
-                    controls.target.z = 0;
+                    controls.target.x = 0; controls.target.y = 0; controls.target.z = 0;
                 }
                 controls.update();
                 
-                status.innerText = "Success! Viewing from Top-Right";
+                status.innerText = "Centered at (0,0,0) - Viewing from Top-Right";
                 
                 const frame = () => {
                     controls.update();
@@ -95,11 +99,11 @@
                 requestAnimationFrame(frame);
 
                 window.addEventListener("resize", () => {
-                    renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
+                    renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 });
         
             } catch (e) {
-                console.error("Main Loop Error:", e);
+                console.error(e);
                 status.innerHTML = "Error: Check Console (F12).";
             }
         }
