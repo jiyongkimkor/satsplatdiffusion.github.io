@@ -16,7 +16,7 @@
                 const controls = new SPLAT.OrbitControls(camera, canvas);
         
                 controls.orbitSpeed = 2.0;
-                controls.zoomSpeed = 1.5;
+                controls.zoomSpeed = 1.0;
 
                 const models = [
                     { 
@@ -71,8 +71,8 @@
                 
                 // 4. 시점 초기화 (직접 대입 방식)
                 camera.position.x = 0;
-                camera.position.y = 1.5;
-                camera.position.z = 3.5;
+                camera.position.y = 0.25;
+                camera.position.z = 1.5;
 
                 if (controls.target) {
                     controls.target.x = 0;
