@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: High-Fidelity Viewer</title>
+    <title>SatSplat: Fixed Right-Side View</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -10,20 +10,17 @@
             const status = document.getElementById("status");
             
             try {
-                // 1. 렌더러 설정 및 해상도 최적화
                 const renderer = new SPLAT.WebGLRenderer(canvas);
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
                 const controls = new SPLAT.OrbitControls(camera, canvas);
         
-                // 고해상도 모니터에서 렉 방지를 위해 비율 제한 (1.0~1.5 추천)
+                // 최적화 설정
                 const devicePixelRatio = Math.min(window.devicePixelRatio, 1.5);
                 renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
-
-                // 2. 컨트롤러 최적화 (댐핑 추가로 잔렉 완화 체감)
                 controls.orbitSpeed = 1.5;
                 controls.zoomSpeed = 1.0;
-                controls.damping = 0.15; // 움직임을 부드럽게 보정
+                controls.damping = 0.15;
 
                 const models = [
                     { 
@@ -40,9 +37,11 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
+                        // 1. 회전 적용 (X축 90도)
                         const rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                         obj.rotation = rotation;
                         
+                        // 2. 가우시안 데이터의 중심 계산
                         const data = obj.data || (obj.splat && obj.splat.data);
                         if (data && data.positions) {
                             const positions = data.positions;
@@ -55,9 +54,20 @@
                                 avgZ += positions[i + 2];
                             }
                             
-                            const center = new SPLAT.Vector3(avgX / count, avgY / count, avgZ / count);
-                            const rotatedCenter = center.rotate(rotation);
-                            obj.position = rotatedCenter.multiply(-1);
+                            const center = { x: avgX / count, y: avgY / count, z: avgZ / count };
+                            
+                            // 3. rotate 함수 에러 해결: 수학적 축 변환 적용
+                            // X축 90도 회전 시: x -> x, y -> z, z -> -y
+                            const rotatedCenterX = center.x;
+                            const rotatedCenterY = center.z;
+                            const rotatedCenterZ = -center.y;
+                            
+                            // 모델을 원점으로 정렬
+                            obj.position.x = -rotatedCenterX;
+                            obj.position.y = -rotatedCenterY;
+                            obj.position.z = -rotatedCenterZ;
+
+                            console.log(`Model ${model.name} manually centered.`);
                         }
                         
                         return obj; 
@@ -69,10 +79,11 @@
 
                 await Promise.all(loadTasks);
                 
-                // 시점 초기화
-                camera.position.x = 0.25;
+                // 4. 시점 초기화 (오른쪽 정측면 뷰)
+                // 정규화 좌표계(-1 ~ 1)이므로 2.0 정도면 충분히 오른쪽에서 전체를 봅니다.
+                camera.position.x = 2.0; 
                 camera.position.y = 0.0;
-                camera.position.z = 1.0;
+                camera.position.z = 0.0;
 
                 if (controls.target) {
                     controls.target.x = 0;
@@ -81,9 +92,8 @@
                 }
                 
                 controls.update();
-                status.innerText = "Success! Drag to Rotate";
+                status.innerText = "Success! Viewing from the Right Side";
                 
-                // 3. 렌더링 루프 최적화
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
@@ -91,7 +101,6 @@
                 };
                 requestAnimationFrame(frame);
 
-                // 4. 윈도우 리사이즈 대응
                 window.addEventListener("resize", () => {
                     renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
                 });
