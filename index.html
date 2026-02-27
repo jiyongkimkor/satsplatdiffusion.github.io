@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Default Viewer</title>
+    <title>SatSplat: Axis Visualizer</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -18,25 +18,63 @@
                 renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 controls.damping = 0.15;
 
-                const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
+                // --- 1. XYZ 축 가시화 함수 (빨강:X, 초록:Y, 파랑:Z) ---
+                function createAxis(color, direction, length = 20) {
+                    const points = 200;
+                    const data = new SPLAT.SplatData();
+                    data.positions = new Float32Array(points * 3);
+                    data.colors = new Uint8Array(points * 4);
+                    data.scales = new Float32Array(points * 3);
+                    data.rotations = new Float32Array(points * 4);
+                    data.opacities = new Float32Array(points);
 
+                    for (let i = 0; i < points; i++) {
+                        const t = (i / points) * length;
+                        data.positions[i * 3] = direction.x * t;
+                        data.positions[i * 3 + 1] = direction.y * t;
+                        data.positions[i * 3 + 2] = direction.z * t;
+                        
+                        data.colors[i * 4] = color.r;
+                        data.colors[i * 4 + 1] = color.g;
+                        data.colors[i * 4 + 2] = color.b;
+                        data.colors[i * 4 + 3] = 255;
+
+                        data.scales[i * 3] = 0.05; 
+                        data.scales[i * 3 + 1] = 0.05; 
+                        data.scales[i * 3 + 2] = 0.05;
+                        
+                        data.rotations[i * 4] = 1;
+                        data.opacities[i] = 1.0;
+                    }
+                    return new SPLAT.Object(data);
+                }
+
+                // 축 추가
+                scene.addObject(createAxis({r: 255, g: 0, b: 0}, {x: 1, y: 0, z: 0})); // X축
+                scene.addObject(createAxis({r: 0, g: 255, b: 0}, {x: 0, y: 1, z: 0})); // Y축
+                scene.addObject(createAxis({r: 0, g: 0, b: 255}, {x: 0, y: 0, z: 1})); // Z축
+
+                // --- 2. 모델 로드 및 SuperSplat 회전 적용 ---
+                const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
                 status.innerText = "Loading Model...";
 
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
-                const rotationX = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0)); // X: -90
-                const rotationY = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, -Math.PI / 2, 0)); // Y: -90
-                obj.rotation = rotationY.multiply(rotationX);
-                // 계산 로직 전부 제거. 데이터를 로드된 위치 그대로 둡니다.
-                // 위성 데이터 좌표가 매우 클 경우를 대비해 카메라만 적당히 배치합니다.
-                
-                camera.position.x = 0.0;
-                camera.position.y = 0.0;
-                camera.position.z = 0.0;
+
+                // SuperSplat 설정값 반영: X -90, Y -90
+                const rotX = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0));
+                const rotY = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, -Math.PI / 2, 0));
+                obj.rotation = rotY.multiply(rotX);
+
+                // --- 3. 카메라 초기 위치 ---
+                // 원점(0,0,0) 근처에서 축과 모델의 관계를 조망
+                camera.position.x = 10;
+                camera.position.y = 10;
+                camera.position.z = 10;
 
                 controls.update();
-                status.innerText = "Model Loaded at Original Coordinates";
+                status.innerText = "Axes: Red(X), Green(Y), Blue(Z)";
                 
                 const frame = () => {
                     controls.update();
@@ -57,17 +95,17 @@
         main();
     </script>
     <style>
-        body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
+        body { margin: 0; background: #050505; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }
         #container { width: 100vw; height: 85vh; background: #000; display: block; }
-        .info { padding: 15px; background: #222; border-bottom: 1px solid #444; }
-        h3 { margin: 0 0 5px 0; color: #4AF; letter-spacing: 1px; }
-        #status { margin: 0; font-size: 0.9em; color: #aaa; font-weight: bold; }
+        .info { padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; }
+        h3 { margin: 0 0 5px 0; color: #4AF; }
+        #status { margin: 0; font-size: 0.9em; color: #aaa; }
     </style>
 </head>
 <body>
     <div class="info">
-        <h3>SatSplat Viewer</h3>
-        <p id="status">Initializing Engine...</p>
+        <h3>SatSplat Axis Visualizer</h3>
+        <p id="status">Initializing...</p>
     </div>
     <canvas id="container"></canvas>
 </body>
