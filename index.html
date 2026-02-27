@@ -10,13 +10,20 @@
             const status = document.getElementById("status");
             
             try {
+                // 1. 렌더러 설정 및 해상도 최적화
                 const renderer = new SPLAT.WebGLRenderer(canvas);
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
                 const controls = new SPLAT.OrbitControls(camera, canvas);
         
-                controls.orbitSpeed = 2.0;
+                // 고해상도 모니터에서 렉 방지를 위해 비율 제한 (1.0~1.5 추천)
+                const devicePixelRatio = Math.min(window.devicePixelRatio, 1.5);
+                renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
+
+                // 2. 컨트롤러 최적화 (댐핑 추가로 잔렉 완화 체감)
+                controls.orbitSpeed = 1.5;
                 controls.zoomSpeed = 1.0;
+                controls.damping = 0.15; // 움직임을 부드럽게 보정
 
                 const models = [
                     { 
@@ -33,11 +40,9 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        // 1. 회전 적용 (X축 90도 회전하여 Y-up으로 변경)
                         const rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                         obj.rotation = rotation;
                         
-                        // 2. 가우시안 데이터의 중심 계산
                         const data = obj.data || (obj.splat && obj.splat.data);
                         if (data && data.positions) {
                             const positions = data.positions;
@@ -51,13 +56,8 @@
                             }
                             
                             const center = new SPLAT.Vector3(avgX / count, avgY / count, avgZ / count);
-                            
-                            // 3. 회전된 좌표계에 맞춰 위치 보정
-                            // 중심점도 회전시킨 후 그 반대 방향으로 모델을 밀어야 원점에 정확히 옵니다.
                             const rotatedCenter = center.rotate(rotation);
                             obj.position = rotatedCenter.multiply(-1);
-
-                            console.log(`Model ${model.name} centered at (0,0,0) after rotation.`);
                         }
                         
                         return obj; 
@@ -69,7 +69,7 @@
 
                 await Promise.all(loadTasks);
                 
-                // 4. 시점 초기화 (직접 대입 방식)
+                // 시점 초기화
                 camera.position.x = 0;
                 camera.position.y = 0.25;
                 camera.position.z = 1.5;
@@ -83,12 +83,18 @@
                 controls.update();
                 status.innerText = "Success! Drag to Rotate";
                 
+                // 3. 렌더링 루프 최적화
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
                     requestAnimationFrame(frame);
                 };
                 requestAnimationFrame(frame);
+
+                // 4. 윈도우 리사이즈 대응
+                window.addEventListener("resize", () => {
+                    renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
+                });
         
             } catch (e) {
                 console.error("Main Loop Error:", e);
