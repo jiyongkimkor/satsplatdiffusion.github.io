@@ -57,6 +57,8 @@
                 // 4. 렌더링 루프
                 const frame = () => {
                     controls.update();
+                    const pos = camera.position;
+                    status.innerText = `Camera: x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
                     renderer.render(scene, camera);
                     requestAnimationFrame(frame);
                 };
