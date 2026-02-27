@@ -25,10 +25,7 @@
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
-                const rotationX = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, 0, 0)); // 눕히기
-                const rotationY = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, Math.PI, 0));      // 뒤집기
-                const rotationZ = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, 0, - Math.PI/4));      // 뒤집기
-                obj.rotation = rotationX.multiply(rotationY).multiply(rotationZ);
+                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(-Math.PI / 2, -Math.PI / 2, 0));
                 // 계산 로직 전부 제거. 데이터를 로드된 위치 그대로 둡니다.
                 // 위성 데이터 좌표가 매우 클 경우를 대비해 카메라만 적당히 배치합니다.
                 
