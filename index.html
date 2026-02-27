@@ -1,26 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: PLY Comparison</title>
+    <title>SatSplat: Swipe Comparison</title>
     <script type="module">
-        // Using the latest version from jsdelivr as per your example
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
-        let rendererA, rendererB, sceneA, sceneB, cameraA, cameraB, controlsA;
+        let rendererA, rendererB, sceneA, sceneB, camera, controls;
         
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
-        /**
-         * Loads PLY model using explicit PLYLoader to avoid RangeErrors.
-         */
         async function loadModel(url, scene) {
             scene.reset();
-            
-            // Explicitly using PLYLoader as seen in the example
             await SPLAT.PLYLoader.LoadAsync(url, scene);
-            
-            // Centering logic for satellite data
             const obj = scene.objects[0];
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
@@ -36,24 +28,23 @@
                     pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
                 }
             }
-            // Satellite coordinate alignment (Z-up to Y-up)
             obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
         }
 
         async function main() {
             const canvasA = document.getElementById("canvasA");
             const canvasB = document.getElementById("canvasB");
+            const slider = document.getElementById("swipe-slider");
 
             sceneA = new SPLAT.Scene();
             sceneB = new SPLAT.Scene();
-            cameraA = new SPLAT.Camera();
-            cameraB = new SPLAT.Camera();
+            camera = new SPLAT.Camera();
 
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
             const resize = () => {
-                const w = (window.innerWidth - 280) / 2;
+                const w = window.innerWidth - 280;
                 const h = window.innerHeight;
                 rendererA.setSize(w, h, Math.min(window.devicePixelRatio, 1.5));
                 rendererB.setSize(w, h, Math.min(window.devicePixelRatio, 1.5));
@@ -61,32 +52,34 @@
             window.addEventListener("resize", resize);
             resize();
 
-            controlsA = new SPLAT.OrbitControls(cameraA, canvasA);
-            cameraA.position = new SPLAT.Vector3(0.75, -1.5, 0.0);
-            controlsA.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
-            controlsA.update();
+            // Single controller for both (since they overlap)
+            controls = new SPLAT.OrbitControls(camera, canvasB); // Use Top canvas for interaction
+            camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
+            controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
+
+            // Slider Interaction
+            slider.addEventListener("input", (e) => {
+                const val = e.target.value;
+                canvasB.style.clipPath = `inset(0 ${100 - val}% 0 0)`;
+                document.getElementById("slider-line").style.left = `${val}%`;
+            });
 
             document.getElementById("status").innerText = "Loading Models...";
             try {
-                // Loading both models simultaneously
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
                     loadModel(MODEL_B_DEFAULT, sceneB)
                 ]);
-                document.getElementById("status").innerText = "Sync Active: Ready";
+                document.getElementById("status").innerText = "Swipe to Compare";
             } catch (err) {
                 console.error(err);
-                document.getElementById("status").innerText = "Load Error. Check HF dataset.";
+                document.getElementById("status").innerText = "Load Error.";
             }
 
             const frame = () => {
-                controlsA.update();
-                // Synchronize B with A
-                cameraB.position = cameraA.position.clone();
-                cameraB.rotation = cameraA.rotation.clone();
-
-                rendererA.render(sceneA, cameraA);
-                rendererB.render(sceneB, cameraB);
+                controls.update();
+                rendererA.render(sceneA, camera);
+                rendererB.render(sceneB, camera);
                 requestAnimationFrame(frame);
             };
             requestAnimationFrame(frame);
@@ -95,42 +88,49 @@
         main();
     </script>
     <style>
-        :root {
-            --bg-sidebar: #fcfcfc;
-            --bg-viewer: #ffffff;
-            --border: #ececec;
-            --accent: #007aff;
-            --text: #333;
+        :root { --accent: #007aff; --border: #ececec; }
+        body { margin: 0; display: flex; background: #fff; font-family: system-ui; overflow: hidden; }
+        
+        #sidebar { width: 280px; background: #fcfcfc; padding: 40px 25px; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 1000; }
+        
+        #viewer-container { flex: 1; position: relative; background: #eee; overflow: hidden; }
+        
+        /* Overlay Canvases */
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #canvasA { z-index: 1; } /* Base Model (Step 1) */
+        #canvasB { z-index: 2; clip-path: inset(0 50% 0 0); } /* Swipe Model (Step 2) */
+
+        /* Swipe UI */
+        #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--accent); z-index: 10; pointer-events: none; }
+        #swipe-slider { 
+            position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+            width: 300px; z-index: 20; cursor: pointer;
         }
-        body { margin: 0; display: flex; background: var(--bg-viewer); color: var(--text); font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
-        #sidebar { width: 280px; background: var(--bg-sidebar); padding: 40px 25px; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
-        #viewer-container { flex: 1; display: flex; background: var(--border); gap: 1px; }
-        canvas { width: 50%; height: 100vh; background: var(--bg-viewer); cursor: crosshair; }
-        h3 { color: var(--accent); font-size: 1.2rem; margin: 0 0 10px 0; font-weight: 700; }
-        #status { font-size: 0.8rem; color: #999; margin-bottom: 40px; display: block; }
-        .info-card { background: #fff; padding: 18px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .info-card span { display: block; font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
-        .info-card p { margin: 0; font-size: 0.9rem; color: #444; }
-        .controls-info { margin-top: auto; font-size: 0.8rem; color: #777; line-height: 1.8; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid var(--border); }
+
+        h3 { color: var(--accent); margin: 0; font-size: 1.2rem; }
+        #status { font-size: 0.8rem; color: #999; margin-bottom: 30px; }
+        .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 15px; font-size: 0.9rem; }
+        .info-card b { color: var(--accent); display: block; font-size: 0.7rem; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h3>SatSplat View</h3>
+        <h3>SatSplat Swipe</h3>
         <span id="status">Initializing...</span>
-        <div class="info-card"><span>Left View</span><p>Step 1 Baked PLY</p></div>
-        <div class="info-card"><span>Right View</span><p>Step 2 Baked PLY</p></div>
-        <div class="controls-info">
-            <strong>Controls</strong><br>
-            • Drag: Rotate<br>
-            • Right Click: Pan<br>
-            • Scroll: Zoom<br><br>
-            <em>* Syncing views automatically</em>
+        
+        <div class="info-card"><b>Right side</b>Step 1 (Base)</div>
+        <div class="info-card"><b>Left side (Overlay)</b>Step 2 (Baked)</div>
+
+        <div style="margin-top: auto; font-size: 0.8rem; color: #777; line-height: 1.6;">
+            하단의 슬라이더를 움직여 두 모델의 경계선을 조절하세요.
         </div>
     </div>
+
     <div id="viewer-container">
         <canvas id="canvasA"></canvas>
         <canvas id="canvasB"></canvas>
+        <div id="slider-line"></div>
+        <input type="range" id="swipe-slider" min="0" max="100" value="50">
     </div>
 </body>
 </html>
