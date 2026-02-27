@@ -33,7 +33,7 @@
                         
                         // 모델이 겹치지 않게 옆으로 살짝 이동 (선택 사항)
                         // obj.position.x = index * 5; 
-                        
+                        obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                         console.log(`${model.name} loaded successfully.`);
                     } catch (err) {
                         console.warn(`Failed to load ${model.name}:`, err);
@@ -43,7 +43,7 @@
                 await Promise.all(loadTasks);
 
                 const center = obj.position;
-                camera.position.set(center.x, center.y, center.z + 2);
+                camera.position.set(center.x, center.y, center.z);
                 controls.target.copy(center); 
                 controls.update();
                 status.innerText = "All Models Loaded! Drag to Rotate";
