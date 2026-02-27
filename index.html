@@ -13,8 +13,15 @@
                 const renderer = new SPLAT.WebGLRenderer(canvas);
                 const scene = new SPLAT.Scene();
                 const camera = new SPLAT.Camera();
+
+                // [중요] OrbitControls 생성 전에 카메라의 초기 위치를 미리 잡아줍니다.
+                // x: 오른쪽(+), y: 수평(0), z: 위에서 내려다보는 높이(+)
+                camera.position.x = 2.0; 
+                camera.position.y = 0.0;
+                camera.position.z = 1.2; 
+
                 const controls = new SPLAT.OrbitControls(camera, canvas);
-        
+                
                 const devicePixelRatio = Math.min(window.devicePixelRatio, 1.5);
                 renderer.setSize(window.innerWidth, window.innerHeight, devicePixelRatio);
                 
@@ -37,11 +44,9 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        // 1. 회전 적용 (X축 90도)
                         const rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                         obj.rotation = rotation;
                         
-                        // 2. 가우시안 데이터의 중심 계산
                         const data = obj.data || (obj.splat && obj.splat.data);
                         if (data && data.positions) {
                             const positions = data.positions;
@@ -54,7 +59,7 @@
                             }
                             const center = { x: avgX / count, y: avgY / count, z: avgZ / count };
                             
-                            // 3. 축 변환 적용 (x -> x, y -> z, z -> -y)
+                            // 축 변환 적용 (x -> x, y -> z, z -> -y)
                             const rotatedCenterX = center.x;
                             const rotatedCenterY = center.z;
                             const rotatedCenterZ = -center.y;
@@ -72,18 +77,10 @@
 
                 await Promise.all(loadTasks);
                 
-                // 4. 시점 초기화 (오른쪽 측면 + 위에서 내려다보기)
-                // 회전된 좌표계(X-90도)에서는 Z축이 "높이" 역할을 합니다.
-                camera.position.x = 0.0; // 오른쪽 사이드로 이동
-                camera.position.y = 0.0; // 수평 유지
-                camera.position.z = 0.0; // 위에서 내려다보는 높이 (Z축!)
-
-                const controls = new SPLAT.OrbitControls(camera, canvas);
-
-                controls.target.x = 0;
-                controls.target.y = 0;
-                controls.target.z = 0;
+                // 타겟(바라보는 곳)을 모델의 중심(0,0,0)으로 고정
+                controls.target.set(0, 0, 0);
                 controls.update();
+                
                 status.innerText = "Success! Viewing from Top-Right";
                 
                 const frame = () => {
