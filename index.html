@@ -7,7 +7,6 @@
 
         let rendererA, rendererB, sceneA, sceneB, camera, controls;
         
-        // Model A: Original (Left) / Model B: Diffusion (Right)
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
@@ -15,7 +14,6 @@
             scene.reset();
             await SPLAT.PLYLoader.LoadAsync(url, scene);
             const obj = scene.objects[0];
-            
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
                 let minX = Infinity, minY = Infinity, minZ = Infinity;
@@ -47,48 +45,42 @@
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
-            // Responsive square resize logic
             const resize = () => {
-                const sidebarWidth = 280;
-                const availableWidth = window.innerWidth - sidebarWidth;
-                const availableHeight = window.innerHeight;
+                const viewerArea = document.getElementById("viewer-area");
+                const availableWidth = viewerArea.clientWidth;
+                const availableHeight = viewerArea.clientHeight;
                 const size = Math.min(availableWidth, availableHeight) - 40;
                 
                 rendererA.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 rendererB.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 
-                // Adjust container position dynamically
                 viewerContainer.style.width = `${size}px`;
                 viewerContainer.style.height = `${size}px`;
-                viewerContainer.style.left = `${sidebarWidth + (availableWidth - size) / 2}px`;
-                viewerContainer.style.top = `${(availableHeight - size) / 2}px`;
             };
             
             window.addEventListener("resize", resize);
             resize();
 
-            // Setup Controls on the viewer container
+            // Controls attached to the container
             controls = new SPLAT.OrbitControls(camera, viewerContainer);
             camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            // Swipe logic (Drag handle)
+            // Drag logic with coordinate correction
             let isDragging = false;
             const setSwipe = (clientX) => {
                 const rect = viewerContainer.getBoundingClientRect();
                 let percentage = (clientX - rect.left) / rect.width;
                 percentage = Math.max(0, Math.min(1, percentage)) * 100;
                 
-                // Original (A) on Left, Diffusion (B) on Right
                 canvasB.style.clipPath = `inset(0 0 0 ${percentage}%)`;
                 sliderLine.style.left = `${percentage}%`;
             };
 
-            // Event Listeners for handle drag
             handle.addEventListener("mousedown", (e) => { 
                 isDragging = true; 
                 e.preventDefault();
-                e.stopPropagation(); // Prevents OrbitControls from capturing this event
+                e.stopPropagation();
             });
 
             window.addEventListener("mousemove", (e) => {
@@ -98,16 +90,15 @@
 
             window.addEventListener("mouseup", () => { isDragging = false; });
 
-            document.getElementById("status").innerText = "Loading Models...";
+            document.getElementById("status").innerText = "Loading...";
             try {
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
                     loadModel(MODEL_B_DEFAULT, sceneB)
                 ]);
-                document.getElementById("status").innerText = "Ready to Compare";
+                document.getElementById("status").innerText = "Ready";
             } catch (err) {
-                document.getElementById("status").innerText = "Load Error";
-                console.error(err);
+                document.getElementById("status").innerText = "Error";
             }
 
             const frame = () => {
@@ -122,23 +113,34 @@
     </script>
     <style>
         :root { --accent: #007aff; --border: #ececec; }
-        body { margin: 0; display: flex; background: #fff; color: #333; font-family: -apple-system, sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
+        * { box-sizing: border-box; }
+        body { margin: 0; display: flex; height: 100vh; width: 100vw; background: #fff; color: #333; font-family: -apple-system, sans-serif; overflow: hidden; }
         
-        /* Sidebar stays on the left */
+        /* Sidebar: Left Side */
         #sidebar { 
             width: 280px; 
-            min-width: 280px;
+            flex-shrink: 0; 
             background: #fcfcfc; 
             padding: 40px 25px; 
             border-right: 1px solid var(--border); 
-            z-index: 100; 
-            box-sizing: border-box;
-            display: flex;
+            display: flex; 
             flex-direction: column;
+            overflow-y: auto;
+            z-index: 10;
+        }
+        
+        /* Viewer Area: Right Side */
+        #viewer-area { 
+            flex-grow: 1; 
+            position: relative; 
+            background: #f0f0f0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
         
         #viewer-container { 
-            position: absolute; /* Changed back to absolute to stay within flex context */
+            position: relative; 
             background: #000; 
             border: 1px solid var(--border); 
             border-radius: 4px; 
@@ -148,8 +150,8 @@
         }
         
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #canvasA { z-index: 1; }
-        #canvasB { z-index: 2; clip-path: inset(0 0 0 50%); }
+        #canvasA { z-index: 1; } /* Original (Left) */
+        #canvasB { z-index: 2; clip-path: inset(0 0 0 50%); } /* Diffusion (Right) */
 
         #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; z-index: 10; pointer-events: none; }
         #swipe-handle { 
@@ -162,30 +164,28 @@
         #swipe-handle::after { content: '↔'; color: var(--accent); font-weight: bold; font-size: 1.2rem; }
 
         h3 { color: var(--accent); margin-bottom: 5px; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; }
-        #status { font-size: 0.8rem; color: #999; margin-bottom: 40px; display: block; }
+        #status { font-size: 0.8rem; color: #999; margin-bottom: 40px; }
         .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; }
         .info-card b { color: var(--accent); display: block; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
         .info-card p { margin: 0; font-size: 0.85rem; font-weight: 500; }
-        
-        .controls-info { margin-top: auto; font-size: 0.75rem; color: #888; line-height: 1.6; }
     </style>
 </head>
 <body>
     <div id="sidebar">
         <h3>SatSplat</h3>
-        <span id="status">Syncing Viewports...</span>
-        <div class="info-card"><b>Left Section</b><p>Step 1: Original</p></div>
-        <div class="info-card"><b>Right Section</b><p>Step 2: Diffusion</p></div>
-        <div class="controls-info">
-            • Orbit: Click & Drag<br>
-            • Pan: Right-Click Drag<br>
-            • Swipe: Drag Center Handle
+        <span id="status">Syncing...</span>
+        <div class="info-card"><b>Left</b><p>Step 1: Original</p></div>
+        <div class="info-card"><b>Right</b><p>Step 2: Diffusion</p></div>
+        <div style="margin-top:auto; font-size: 0.75rem; color:#888;">
+            Drag center handle to compare results.
         </div>
     </div>
-    <div id="viewer-container">
-        <canvas id="canvasA"></canvas>
-        <canvas id="canvasB"></canvas>
-        <div id="slider-line"><div id="swipe-handle"></div></div>
+    <div id="viewer-area">
+        <div id="viewer-container">
+            <canvas id="canvasA"></canvas>
+            <canvas id="canvasB"></canvas>
+            <div id="slider-line"><div id="swipe-handle"></div></div>
+        </div>
     </div>
 </body>
 </html>
