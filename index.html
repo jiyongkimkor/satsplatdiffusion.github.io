@@ -6,29 +6,40 @@
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
         let rendererA, rendererB, sceneA, sceneB, camera, controls;
-        
+
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
         async function loadModel(url, scene) {
             scene.reset();
             await SPLAT.PLYLoader.LoadAsync(url, scene);
+
             const obj = scene.objects[0];
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
                 let minX = Infinity, minY = Infinity, minZ = Infinity;
                 let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
                 for (let i = 0; i < pos.length; i += 3) {
                     minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
                     minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
                     minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
                 }
-                const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
+
+                const cX = (minX + maxX) / 2;
+                const cY = (minY + maxY) / 2;
+                const cZ = (minZ + maxZ) / 2;
+
                 for (let i = 0; i < pos.length; i += 3) {
-                    pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
+                    pos[i] -= cX;
+                    pos[i+1] -= cY;
+                    pos[i+2] -= cZ;
                 }
             }
-            obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+
+            obj.rotation = SPLAT.Quaternion.FromEuler(
+                new SPLAT.Vector3(Math.PI / 2, 0, 0)
+            );
         }
 
         async function main() {
@@ -37,6 +48,9 @@
             const viewerContainer = document.getElementById("viewer-container");
             const handle = document.getElementById("swipe-handle");
             const sliderLine = document.getElementById("slider-line");
+
+            const sidebar = document.getElementById("sidebar");
+            const sidebarHeader = document.getElementById("sidebar-header");
 
             sceneA = new SPLAT.Scene();
             sceneB = new SPLAT.Scene();
@@ -53,39 +67,83 @@
                 viewerContainer.style.width = `${size}px`;
                 viewerContainer.style.height = `${size}px`;
             };
-            
+
             window.addEventListener("resize", resize);
             resize();
 
-            // CRITICAL: Attach controls ONLY to the viewerContainer
-            // This prevents it from stealing events from the sidebar
             controls = new SPLAT.OrbitControls(camera, viewerContainer);
             camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            let isDragging = false;
+            /* ======================
+               Swipe Comparison Logic
+            ====================== */
+
+            let isDraggingSwipe = false;
+
             const setSwipe = (clientX) => {
                 const rect = viewerContainer.getBoundingClientRect();
                 let percentage = (clientX - rect.left) / rect.width;
                 percentage = Math.max(0, Math.min(1, percentage)) * 100;
-                
+
                 canvasB.style.clipPath = `inset(0 0 0 ${percentage}%)`;
                 sliderLine.style.left = `${percentage}%`;
             };
 
-            // Event separation: Stop propagation so OrbitControls doesn't trigger
-            handle.addEventListener("mousedown", (e) => { 
-                isDragging = true; 
-                e.stopPropagation(); 
+            handle.addEventListener("mousedown", (e) => {
+                isDraggingSwipe = true;
+                e.stopPropagation();
             });
 
             window.addEventListener("mousemove", (e) => {
-                if (isDragging) setSwipe(e.clientX);
+                if (isDraggingSwipe) setSwipe(e.clientX);
             });
 
-            window.addEventListener("mouseup", () => isDragging = false);
+            window.addEventListener("mouseup", () => {
+                isDraggingSwipe = false;
+            });
+
+            /* ======================
+               Sidebar Drag Logic
+            ====================== */
+
+            let isDraggingSidebar = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            sidebarHeader.addEventListener("mousedown", (e) => {
+                isDraggingSidebar = true;
+                offsetX = e.clientX - sidebar.offsetLeft;
+                offsetY = e.clientY - sidebar.offsetTop;
+                sidebar.style.cursor = "grabbing";
+                e.stopPropagation();
+            });
+
+            window.addEventListener("mousemove", (e) => {
+                if (!isDraggingSidebar) return;
+
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+
+                // 화면 밖으로 못 나가게 제한
+                x = Math.max(0, Math.min(window.innerWidth - sidebar.offsetWidth, x));
+                y = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, y));
+
+                sidebar.style.left = x + "px";
+                sidebar.style.top = y + "px";
+            });
+
+            window.addEventListener("mouseup", () => {
+                isDraggingSidebar = false;
+                sidebar.style.cursor = "grab";
+            });
+
+            /* ======================
+               Load Models
+            ====================== */
 
             document.getElementById("status").innerText = "Loading...";
+
             try {
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
@@ -102,76 +160,144 @@
                 rendererB.render(sceneB, camera);
                 requestAnimationFrame(frame);
             };
+
             requestAnimationFrame(frame);
         }
+
         main();
     </script>
+
     <style>
         :root { --accent: #007aff; --border: #ececec; }
         * { box-sizing: border-box; }
-        body { margin: 0; display: flex; height: 100vh; width: 100vw; overflow: hidden; background: #fff; }
-        
-        /* Fixed Sidebar */
-        #sidebar { 
-            width: 280px; 
-            flex-shrink: 0; 
-            background: #fcfcfc; 
-            padding: 40px 25px; 
-            border-right: 1px solid var(--border); 
-            z-index: 100; /* Stays above the background but separate from viewer */
+
+        body {
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background: #fff;
         }
-        
-        #viewer-area { 
-            flex-grow: 1; 
-            background: #f0f0f0; 
-            display: flex; 
-            align-items: center; 
+
+        /* ===== Draggable Sidebar ===== */
+
+        #sidebar {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 280px;
+            background: #fcfcfc;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            z-index: 200;
+        }
+
+        #sidebar-header {
+            cursor: grab;
+            margin-bottom: 15px;
+        }
+
+        h3 { color: var(--accent); margin: 0; }
+        #status { font-size: 0.8rem; color: #999; }
+
+        .info-card {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .info-card b {
+            color: var(--accent);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+        }
+
+        /* ===== Viewer Area ===== */
+
+        #viewer-area {
+            height: 100%;
+            display: flex;
+            align-items: center;
             justify-content: center;
-            position: relative;
+            background: #f0f0f0;
         }
-        
-        #viewer-container { 
-            position: relative; 
-            background: #000; 
-            border: 1px solid var(--border); 
-            border-radius: 4px; 
-            overflow: hidden; 
+
+        #viewer-container {
+            position: relative;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
             touch-action: none;
         }
-        
-        /* Event Passthrough for Canvases */
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #canvasA { z-index: 1; }
-        #canvasB { z-index: 2; clip-path: inset(0 0 0 50%); }
 
-        #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; z-index: 10; pointer-events: none; }
-        #swipe-handle { 
-            position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
-            width: 44px; height: 44px; background: #fff; border: 1px solid var(--border);
-            border-radius: 50%; z-index: 20; cursor: col-resize; pointer-events: all;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
-        #swipe-handle::after { content: '↔'; color: var(--accent); font-weight: bold; }
 
-        h3 { color: var(--accent); font-size: 1.2rem; margin: 0; }
-        #status { font-size: 0.8rem; color: #999; }
-        .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-top: 20px; }
-        .info-card b { color: var(--accent); display: block; font-size: 0.65rem; text-transform: uppercase; }
+        #canvasB {
+            clip-path: inset(0 0 0 50%);
+        }
+
+        #slider-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            background: #fff;
+            pointer-events: none;
+        }
+
+        #swipe-handle {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%);
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: col-resize;
+            pointer-events: all;
+        }
+
+        #swipe-handle::after {
+            content: '↔';
+            color: var(--accent);
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
     <div id="sidebar">
-        <h3>SatSplat</h3>
-        <span id="status">Syncing...</span>
+        <div id="sidebar-header">
+            <h3>SatSplat</h3>
+            <span id="status">Syncing...</span>
+        </div>
         <div class="info-card"><b>Left Section</b>Step 1: Original</div>
         <div class="info-card"><b>Right Section</b>Step 2: Diffusion</div>
     </div>
+
     <div id="viewer-area">
         <div id="viewer-container">
             <canvas id="canvasA"></canvas>
             <canvas id="canvasB"></canvas>
-            <div id="slider-line"><div id="swipe-handle"></div></div>
+            <div id="slider-line">
+                <div id="swipe-handle"></div>
+            </div>
         </div>
     </div>
 </body>
