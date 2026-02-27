@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Fixed Orientation Viewer</title>
+    <title>SatSplat: Manual Camera Control</title>
     <script type="module">
         import * as SPLAT from "https://cdn.skypack.dev/gsplat@1.2.0";
         
@@ -18,14 +18,28 @@
 
                 const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
 
-                status.innerText = "Loading Model...";
+                status.innerText = "Centering Model & Setting Camera...";
 
-                // 모델 로드 대기
-                const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
-                    status.innerText = `Loading: ${Math.round(progress * 100)}%`;
-                });
+                const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene);
 
-                // 1. 모델 회전: X축 +90도 회전 (고도 Z를 웹의 위 Y로 변환)
+                // 1. 모델 데이터 원점 이동 (강제 센터링)
+                const data = obj.data || (obj.splat && obj.splat.data);
+                if (data && data.positions) {
+                    const pos = data.positions;
+                    let minX = Infinity, minY = Infinity, minZ = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+                    for (let i = 0; i < pos.length; i += 3) {
+                        if(pos[i] < minX) minX = pos[i]; if(pos[i] > maxX) maxX = pos[i];
+                        if(pos[i+1] < minY) minY = pos[i+1]; if(pos[i+1] > maxY) maxY = pos[i+1];
+                        if(pos[i+2] < minZ) minZ = pos[i+2]; if(pos[i+2] > maxZ) maxZ = pos[i+2];
+                    }
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    const centerZ = (minZ + maxZ) / 2;
+                    for (let i = 0; i < pos.length; i += 3) {
+                        pos[i] -= centerX; pos[i+1] -= centerY; pos[i+2] -= centerZ;
+                    }
+                }
                 obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0.0, 0.0));
 
                 // 3. 컨트롤러 생성 및 설정
