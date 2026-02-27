@@ -19,7 +19,7 @@
                 controls.zoomSpeed = 1.5;
 
                 const models = [
-                    { name: "JAX_068", url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true"},
+                    { name: "JAX_068", url: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true"}
                 ];
 
                 status.innerText = "Connecting to Hugging Face...";
@@ -30,13 +30,9 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        // 축 보정 (위성 데이터 특성)
-                        obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+                        // [삭제됨] obj.rotation 설정은 가우시안 왜곡(짜부됨)의 원인이므로 제거합니다.
                         
-                        // 데이터 구조 확인 및 중심 계산
-                        // v1.2.0 기준으로는 obj.splat.data 등을 참조해야 할 수 있음
                         const data = obj.data || (obj.splat && obj.splat.data);
-                        
                         if (data && data.positions) {
                             const positions = data.positions;
                             let avgX = 0, avgY = 0, avgZ = 0;
@@ -51,7 +47,7 @@
                             const center = new SPLAT.Vector3(avgX / count, avgY / count, avgZ / count);
                             console.log("Calculated Center:", center);
                             
-                            // 모델을 원점으로 이동
+                            // 모델을 데이터의 중심만큼 밀어서 화면 중앙(0,0,0)에 오게 함
                             obj.position = center.multiply(-1);
                         }
                         
@@ -62,14 +58,14 @@
                     }
                 });
 
-                const loadedObjects = await Promise.all(loadTasks);
+                await Promise.all(loadTasks);
                 
-                // 시점 초기화
+                // 시점 초기화 (위성 데이터 좌표계 맞춤)
+                // 위성 데이터는 보통 Z축이 높이이므로, 카메라를 Y축 뒤로 빼고 Z축 위로 올려서 내려다보게 설정
                 camera.position.x = 0;
-                camera.position.y = 2;
-                camera.position.z = 5;
+                camera.position.y = -3.0; // 정면 거리
+                camera.position.z = 2.0;  // 높이 (조절 가능)
 
-                // controls.target도 동일하게 처리
                 if (controls.target) {
                     controls.target.x = 0;
                     controls.target.y = 0;
@@ -77,7 +73,6 @@
                 }
                 
                 controls.update();
-
                 status.innerText = "Success! Drag to Rotate";
                 
                 const frame = () => {
