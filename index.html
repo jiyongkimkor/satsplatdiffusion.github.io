@@ -35,14 +35,14 @@
                 camera.position.x = 1.0;
                 camera.position.y = -1.50;
                 camera.position.z = 0.0;
-
+                const controls = new SPLAT.OrbitControls(camera, canvas);
+                controls.target = new SPLAT.Vector3(0, 0, 0);
                 controls.update();
                 status.innerText = "Rotation Fixed: Viewing Front Surface";
                 
                 const frame = () => {
                     controls.update();
                     renderer.render(scene, camera);
-                    status.innerText = `Pos: x=${camera.position.x.toFixed(2)}, y=${camera.position.y.toFixed(2)}, z=${camera.position.z.toFixed(2)}`;
                     requestAnimationFrame(frame);
                 };
                 requestAnimationFrame(frame);
