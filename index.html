@@ -44,10 +44,11 @@
 
                 // 3. 컨트롤러 생성 및 설정
                 // 카메라 좌표가 설정된 후 생성해야 초기 시점이 튀지 않습니다.
+                camera.position = new SPLAT.Vector3(1.0, -1.5, 0.0);
+                
                 const controls = new SPLAT.OrbitControls(camera, canvas);
                 controls.damping = 0.15;
                 controls.target = new SPLAT.Vector3(0, 0, 0);
-                camera.position = new SPLAT.Vector3(1.0, -1.5, 0.0);
                 controls.update(); // 변경된 카메라/타겟 값 반영
 
                 status.innerText = "View Fixed: Side Perspective";
