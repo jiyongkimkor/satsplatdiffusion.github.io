@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Diffusion Filtering Comparison</title>
+    <title>SatSplat: Diffusion Comparison</title>
     <script type="module">
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
@@ -47,6 +47,7 @@
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
+            // Responsive square resize
             const resize = () => {
                 const sidebarWidth = 280;
                 const availableWidth = window.innerWidth - sidebarWidth;
@@ -56,49 +57,46 @@
                 rendererA.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 rendererB.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 
-                const paddingLeft = (availableWidth - size) / 2;
-                const paddingTop = (availableHeight - size) / 2;
                 viewerContainer.style.width = `${size}px`;
                 viewerContainer.style.height = `${size}px`;
-                viewerContainer.style.transform = `translate(${paddingLeft}px, ${paddingTop}px)`;
+                viewerContainer.style.left = `${sidebarWidth + (availableWidth - size) / 2}px`;
+                viewerContainer.style.top = `${(availableHeight - size) / 2}px`;
             };
             
             window.addEventListener("resize", resize);
             resize();
 
-            // Setup Controls on the parent container to allow camera rotation
+            // Setup Controls on the container
             controls = new SPLAT.OrbitControls(camera, viewerContainer);
             camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
+            // Swipe logic
             let isDragging = false;
-            
-            const setSwipePercentage = (x) => {
+            const setSwipe = (clientX) => {
                 const rect = viewerContainer.getBoundingClientRect();
-                let percentage = (x - rect.left) / rect.width;
-                percentage = Math.max(0, Math.min(1, percentage));
-                const val = percentage * 100;
+                let percentage = (clientX - rect.left) / rect.width;
+                percentage = Math.max(0, Math.min(1, percentage)) * 100;
                 
-                // ★ Orientation Update: Step 1 (A) on the Left, Step 2 (B) on the Right
-                // We show Model B from the slider position to the right edge
-                canvasB.style.clipPath = `inset(0 0 0 ${val}%)`;
-                sliderLine.style.left = `${val}%`;
+                // Original(A) on Left, Diffusion(B) on Right
+                canvasB.style.clipPath = `inset(0 0 0 ${percentage}%)`;
+                sliderLine.style.left = `${percentage}%`;
             };
 
-            const startDrag = (e) => { isDragging = true; e.stopPropagation(); };
-            const endDrag = () => { isDragging = false; };
-            const onMove = (e) => {
+            // Capture swipe on handle only
+            handle.addEventListener("mousedown", (e) => { 
+                isDragging = true; 
+                e.stopPropagation(); // Prevents OrbitControls from starting
+            });
+
+            window.addEventListener("mousemove", (e) => {
                 if (!isDragging) return;
-                const x = e.clientX || (e.touches && e.touches[0].clientX);
-                setSwipePercentage(x);
-            };
+                setSwipe(e.clientX);
+            });
 
-            handle.addEventListener("mousedown", startDrag);
-            window.addEventListener("mouseup", endDrag);
-            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", () => { isDragging = false; });
 
             document.getElementById("status").innerText = "Loading Models...";
-            
             try {
                 await Promise.all([
                     loadModel(MODEL_A_DEFAULT, sceneA),
@@ -106,7 +104,6 @@
                 ]);
                 document.getElementById("status").innerText = "Ready to Compare";
             } catch (err) {
-                console.error(err);
                 document.getElementById("status").innerText = "Load Error";
             }
 
@@ -118,18 +115,16 @@
             };
             requestAnimationFrame(frame);
         }
-
         main();
     </script>
     <style>
         :root { --accent: #007aff; --border: #ececec; }
-        body { margin: 0; display: flex; background: #fff; color: #333; font-family: -apple-system, sans-serif; overflow: hidden; }
+        body { margin: 0; display: flex; background: #fff; font-family: -apple-system, sans-serif; overflow: hidden; }
+        #sidebar { width: 280px; background: #fcfcfc; padding: 40px 25px; border-right: 1px solid var(--border); z-index: 1000; }
         
-        #sidebar { width: 280px; background: #fcfcfc; padding: 40px 25px; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 1000; }
-        #viewer-area { flex: 1; position: relative; background: #f0f0f0; }
-        
+        /* Fixed position container */
         #viewer-container { 
-            position: absolute; 
+            position: fixed; 
             background: #000; 
             border: 1px solid var(--border); 
             border-radius: 4px; 
@@ -138,26 +133,22 @@
             touch-action: none; 
         }
         
-        /* Layered Canvases: Ensure they don't block mouse events for OrbitControls */
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #canvasA { z-index: 1; } /* Original (Left) */
-        #canvasB { z-index: 2; clip-path: inset(0 0 0 50%); } /* Diffusion (Right) */
+        #canvasA { z-index: 1; }
+        #canvasB { z-index: 2; clip-path: inset(0 0 0 50%); }
 
-        /* Swipe UI */
         #slider-line { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; z-index: 10; pointer-events: none; }
         #swipe-handle { 
             position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%);
             width: 44px; height: 44px; background: #fff; border: 1px solid var(--border);
-            border-radius: 50%; z-index: 20; cursor: col-resize; 
-            pointer-events: all;
+            border-radius: 50%; z-index: 20; cursor: col-resize; pointer-events: all;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         #swipe-handle::after { content: '↔'; color: var(--accent); font-weight: bold; font-size: 1.2rem; }
 
-        h3 { color: var(--accent); margin: 0 0 5px 0; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; }
+        h3 { color: var(--accent); margin-bottom: 5px; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; }
         #status { font-size: 0.8rem; color: #999; margin-bottom: 40px; display: block; }
-        
         .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; }
         .info-card b { color: var(--accent); display: block; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
         .info-card p { margin: 0; font-size: 0.85rem; font-weight: 500; }
@@ -167,23 +158,13 @@
     <div id="sidebar">
         <h3>SatSplat</h3>
         <span id="status">Syncing Viewports...</span>
-        
         <div class="info-card"><b>Left Section</b><p>Step 1: Original</p></div>
         <div class="info-card"><b>Right Section</b><p>Step 2: Diffusion</p></div>
-
-        <div style="margin-top: auto; font-size: 0.75rem; color: #888; line-height: 1.6;">
-            <strong>[Controls]</strong><br>
-            • Drag Viewer: Rotate Camera<br>
-            • Drag Handle: Swipe Comparison
-        </div>
     </div>
-
-    <div id="viewer-area">
-        <div id="viewer-container">
-            <canvas id="canvasA"></canvas>
-            <canvas id="canvasB"></canvas>
-            <div id="slider-line"><div id="swipe-handle"></div></div>
-        </div>
+    <div id="viewer-container">
+        <canvas id="canvasA"></canvas>
+        <canvas id="canvasB"></canvas>
+        <div id="slider-line"><div id="swipe-handle"></div></div>
     </div>
 </body>
 </html>
