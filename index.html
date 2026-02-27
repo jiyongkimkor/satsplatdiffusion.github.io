@@ -30,42 +30,46 @@
                             status.innerText = `Loading ${model.name}: ${Math.round(progress * 100)}%`;
                         });
                         
-                        // 축 보정
+                        // 축 보정 (위성 데이터 특성)
                         obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
                         
-                        // --- 실제 중심 계산 로직 추가 ---
-                        let avgX = 0, avgY = 0, avgZ = 0;
-                        const positions = obj.data.positions; // 가우시안 점들의 위치 배열
-                        const count = positions.length / 3;
+                        // 데이터 구조 확인 및 중심 계산
+                        // v1.2.0 기준으로는 obj.splat.data 등을 참조해야 할 수 있음
+                        const data = obj.data || (obj.splat && obj.splat.data);
+                        
+                        if (data && data.positions) {
+                            const positions = data.positions;
+                            let avgX = 0, avgY = 0, avgZ = 0;
+                            const count = positions.length / 3;
 
-                        for (let i = 0; i < positions.length; i += 3) {
-                            avgX += positions[i];
-                            avgY += positions[i + 1];
-                            avgZ += positions[i + 2];
+                            for (let i = 0; i < positions.length; i += 3) {
+                                avgX += positions[i];
+                                avgY += positions[i + 1];
+                                avgZ += positions[i + 2];
+                            }
+                            
+                            const center = new SPLAT.Vector3(avgX / count, avgY / count, avgZ / count);
+                            console.log("Calculated Center:", center);
+                            
+                            // 모델을 원점으로 이동
+                            obj.position = center.multiply(-1);
                         }
-                        
-                        // 계산된 중심점을 객체의 position으로 강제 설정
-                        const center = new SPLAT.Vector3(avgX / count, avgY / count, avgZ / count);
-                        console.log("Calculated Center:", center);
-                        
-                        // 데이터 자체에 오프셋이 있다면 객체를 그 반대 방향으로 밀어 원점으로 보냄
-                        obj.position = center.multiply(-1); 
                         
                         return obj; 
                     } catch (err) {
-                        console.warn(`Failed to load ${model.name}:`, err);
+                        console.error(`Failed to load ${model.name}:`, err);
                         return null;
                     }
                 });
 
                 const loadedObjects = await Promise.all(loadTasks);
-                if (loadedObjects.length > 0) {
-                    // 이제 모든 모델이 (0,0,0) 근처로 모였으므로 카메라를 고정
-                    camera.position.set(0, 1.0, 2.0); 
-                    controls.target.set(0, 0, 0); 
-                    controls.update();
-                    status.innerText = "Success! Centered at (0,0,0)";
-                }
+                
+                // 시점 초기화
+                camera.position.set(0, 2, 5); 
+                controls.target.set(0, 0, 0); 
+                controls.update();
+
+                status.innerText = "Success! Drag to Rotate";
                 
                 const frame = () => {
                     controls.update();
@@ -75,8 +79,8 @@
                 requestAnimationFrame(frame);
         
             } catch (e) {
-                console.error(e);
-                status.innerHTML = "Error: Check Console.";
+                console.error("Main Loop Error:", e);
+                status.innerHTML = "Error: Check F12 Console for details.";
             }
         }
         main();
