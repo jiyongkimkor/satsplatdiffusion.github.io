@@ -104,17 +104,17 @@
             });
 
             /* ======================
-               Sidebar Drag Logic
+               Sidebar Drag Logic (Delta-based)
             ====================== */
 
             let isDraggingSidebar = false;
-            let offsetX = 0;
-            let offsetY = 0;
+            let prevMouseX = 0;
+            let prevMouseY = 0;
 
             sidebarHeader.addEventListener("mousedown", (e) => {
                 isDraggingSidebar = true;
-                offsetX = e.clientX - sidebar.offsetLeft;
-                offsetY = e.clientY - sidebar.offsetTop;
+                prevMouseX = e.clientX;
+                prevMouseY = e.clientY;
                 sidebar.style.cursor = "grabbing";
                 e.stopPropagation();
             });
@@ -122,15 +122,21 @@
             window.addEventListener("mousemove", (e) => {
                 if (!isDraggingSidebar) return;
 
-                let x = e.clientX - offsetX;
-                let y = e.clientY - offsetY;
+                const deltaX = e.clientX - prevMouseX;
+                const deltaY = e.clientY - prevMouseY;
 
-                // 화면 밖으로 못 나가게 제한
-                x = Math.max(0, Math.min(window.innerWidth - sidebar.offsetWidth, x));
-                y = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, y));
+                let newLeft = sidebar.offsetLeft + deltaX;
+                let newTop = sidebar.offsetTop + deltaY;
 
-                sidebar.style.left = x + "px";
-                sidebar.style.top = y + "px";
+                // 화면 밖으로 제한
+                newLeft = Math.max(0, Math.min(window.innerWidth - sidebar.offsetWidth, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - sidebar.offsetHeight, newTop));
+
+                sidebar.style.left = newLeft + "px";
+                sidebar.style.top = newTop + "px";
+
+                prevMouseX = e.clientX;
+                prevMouseY = e.clientY;
             });
 
             window.addEventListener("mouseup", () => {
@@ -180,7 +186,6 @@
         }
 
         /* ===== Draggable Sidebar ===== */
-
         #sidebar {
             position: absolute;
             top: 30px;
@@ -217,7 +222,6 @@
         }
 
         /* ===== Viewer Area ===== */
-
         #viewer-area {
             height: 100%;
             display: flex;
