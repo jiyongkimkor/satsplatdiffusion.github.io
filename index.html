@@ -14,23 +14,19 @@
         /**
          * Robust model loader that handles redirects and forces file extension recognition.
          */
-        async function loadModel(url, scene) {
-            scene.reset(); // Clear existing scene data
-
-            // 1. Fetch data manually to handle potential CORS/Redirect issues
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            async function loadModel(url, scene) {
+                scene.reset();
+                
+                const response = await fetch(url, { redirect: 'follow' });
+                if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+                
+                const blob = await response.blob();
+                
+                // gsplat.js가 형식을 오해하지 않도록 File 객체로 래핑
+                const isPly = url.toLowerCase().includes(".ply");
+                const file = new File([blob], isPly ? "model.ply" : "model.splat", { type: blob.type });
             
-            const blob = await response.blob();
-
-            // 2. Wrap blob in a File object to explicitly provide the extension.
-            // gsplat.js uses the file extension to determine the correct parser (PLY vs SPLAT).
-            const isPly = url.toLowerCase().includes(".ply");
-            const fileName = isPly ? "model.ply" : "model.splat";
-            const file = new File([blob], fileName, { type: blob.type });
-
-            // 3. Load from the File object
-            const obj = await SPLAT.Loader.LoadAsync(file, scene);
+                const obj = await SPLAT.Loader.LoadAsync(file, scene);
             
             // 4. Force centering the model data
             const data = obj.data || (obj.splat && obj.splat.data);
