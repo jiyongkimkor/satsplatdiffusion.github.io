@@ -8,10 +8,9 @@
         let rendererA, rendererB, sceneA, sceneB, cameraA, cameraB, controlsA;
         
         // Switched to 'download' endpoint for more stable binary transfer
-        const PROXY_URL = "https://cors-anywhere.herokuapp.com/";
         
-        const MODEL_A_DEFAULT = PROXY_URL + "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
-        const MODEL_B_DEFAULT = PROXY_URL + "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
+        const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/raw/main/JAX_068_step1_baked.ply";
+        const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/raw/main/JAX_068_step2_baked.ply";
 
         /**
          * Robust model loader optimized for Hugging Face LFS and PLY files.
