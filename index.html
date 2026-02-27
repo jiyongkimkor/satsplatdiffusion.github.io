@@ -18,7 +18,7 @@
                 renderer.setSize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio, 1.5));
                 controls.damping = 0.15;
 
-                // --- 1. 축 가시화 함수 (SPLAT.Splat 생성자 사용) ---
+                // --- 1. 축 가시화 함수 (SPLAT.Splat 사용) ---
                 function createAxis(color, direction, length = 20) {
                     const points = 200;
                     const positions = new Float32Array(points * 3);
@@ -54,20 +54,18 @@
                         opacities
                     });
                     
-                    // SPLAT.Object 대신 SPLAT.Splat 사용
                     return new SPLAT.Splat(data);
                 }
 
-                // Scene에 축 추가
-                scene.addSplat(createAxis({r: 255, g: 0, b: 0}, {x: 1, y: 0, z: 0})); // X: 빨강
-                scene.addSplat(createAxis({r: 0, g: 255, b: 0}, {x: 0, y: 1, z: 0})); // Y: 초록
-                scene.addSplat(createAxis({r: 0, g: 0, b: 255}, {x: 0, y: 0, z: 1})); // Z: 파랑
+                // 1.2.0 버전에서는 addObject를 사용합니다.
+                scene.addObject(createAxis({r: 255, g: 0, b: 0}, {x: 1, y: 0, z: 0})); // X: 빨강
+                scene.addObject(createAxis({r: 0, g: 255, b: 0}, {x: 0, y: 1, z: 0})); // Y: 초록
+                scene.addObject(createAxis({r: 0, g: 0, b: 255}, {x: 0, y: 0, z: 1})); // Z: 파랑
 
                 // --- 2. 모델 로드 및 회전 ---
                 const modelUrl = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068.splat?download=true";
                 status.innerText = "Loading Model...";
 
-                // Loader로 읽어온 객체도 scene.addSplat으로 추가하거나 Loader 자체의 옵션을 따름
                 const obj = await SPLAT.Loader.LoadAsync(modelUrl, scene, (progress) => {
                     status.innerText = `Loading: ${Math.round(progress * 100)}%`;
                 });
@@ -83,7 +81,7 @@
                 camera.position.z = 10;
 
                 controls.update();
-                status.innerText = "Axes: Red(X), Green(Y), Blue(Z)";
+                status.innerText = "Axes Loaded: Red(X), Green(Y), Blue(Z)";
                 
                 const frame = () => {
                     controls.update();
