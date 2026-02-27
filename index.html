@@ -7,34 +7,35 @@
 
         let rendererA, rendererB, sceneA, sceneB, cameraA, cameraB, controlsA;
         
-        // Switched to 'download' endpoint for more stable binary transfer
-        
+        // Use 'resolve' with '?download=true' for the most stable direct binary access
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
         /**
-         * Robust model loader optimized for Hugging Face LFS and PLY files.
+         * Enhanced model loader to prevent RangeError and handle PLY format correctly.
          */
         async function loadModel(url, scene) {
-            scene.reset(); // Clear previous data
-        
-            // 1. Fetch data from Hugging Face
-            // Use 'follow' to handle LFS redirects automatically
+            scene.reset(); 
+
+            // 1. Fetch binary data
             const response = await fetch(url, { redirect: 'follow' });
             if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
             
             const blob = await response.blob();
             
-            // 2. ★ Key Fix: Create a Blob URL (string) instead of a File object
-            // This provides a temporary local URL like "blob:https://..." 
-            // which the gsplat.js loader can read without 404 or [object File] errors.
-            const blobUrl = URL.createObjectURL(blob);
-        
+            // 2. Wrap blob in a File object to provide a filename hint
+            // This is CRITICAL for gsplat.js to trigger the PLY parser instead of the SPLAT parser
+            const fileName = url.toLowerCase().includes(".ply") ? "model.ply" : "model.splat";
+            const file = new File([blob], fileName, { type: blob.type });
+            
+            // 3. Create a Blob URL from the File object
+            const blobUrl = URL.createObjectURL(file);
+
             try {
-                // 3. Load using the Blob URL string
+                // 4. Load using the identified file type
                 const obj = await SPLAT.Loader.LoadAsync(blobUrl, scene);
                 
-                // 4. Centering and alignment (English comments)
+                // 5. Centering logic using the loaded object's data
                 const data = obj.data || (obj.splat && obj.splat.data);
                 if (data && data.positions) {
                     const pos = data.positions;
@@ -50,26 +51,22 @@
                         pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
                     }
                 }
+                // Alignment: Z-up to Y-up
                 obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
             } finally {
-                // 5. Release memory after a short delay to ensure loading is complete
+                // Cleanup to free memory
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
             }
         }
+
         async function main() {
             const canvasA = document.getElementById("canvasA");
             const canvasB = document.getElementById("canvasB");
 
-            sceneA = new SPLAT.Scene();
-            sceneB = new SPLAT.Scene();
-            cameraA = new SPLAT.Camera();
-            cameraB = new SPLAT.Camera();
-
+            sceneA = new SPLAT.Scene(); sceneB = new SPLAT.Scene();
+            cameraA = new SPLAT.Camera(); cameraB = new SPLAT.Camera();
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
-
-            // Set renderer background to white (Optional: Depends on gsplat.js version support)
-            // rendererA.backgroundColor = new SPLAT.Color(1, 1, 1);
 
             const resize = () => {
                 const sidebarWidth = 280;
@@ -81,10 +78,7 @@
             window.addEventListener("resize", resize);
             resize();
 
-            // Setup Controls on the left side
             controlsA = new SPLAT.OrbitControls(cameraA, canvasA);
-            
-            // Override camera position and target
             cameraA.position = new SPLAT.Vector3(0.75, -1.5, 0.0);
             controlsA.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
             controlsA.update();
@@ -98,16 +92,13 @@
                 document.getElementById("status").innerText = "Analysis Ready: Sync Active";
             } catch (err) {
                 console.error(err);
-                document.getElementById("status").innerText = "Error: Check Console or HF Settings.";
+                document.getElementById("status").innerText = "Error: Check Dataset Accessibility.";
             }
 
             const frame = () => {
                 controlsA.update();
-                
-                // Synchronize both viewports
                 cameraB.position = cameraA.position.clone();
                 cameraB.rotation = cameraA.rotation.clone();
-
                 rendererA.render(sceneA, cameraA);
                 rendererB.render(sceneB, cameraB);
                 requestAnimationFrame(frame);
@@ -127,69 +118,28 @@
             --accent: #007aff;
         }
 
-        body { margin: 0; display: flex; background: var(--bg-viewer); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-        
-        #sidebar { 
-            width: 280px; 
-            background: var(--bg-sidebar); 
-            padding: 40px 25px; 
-            border-right: 1px solid var(--border); 
-            display: flex; 
-            flex-direction: column;
-            z-index: 100;
-        }
-        
+        body { margin: 0; display: flex; background: var(--bg-viewer); color: var(--text-main); font-family: -apple-system, system-ui, sans-serif; overflow: hidden; }
+        #sidebar { width: 280px; background: var(--bg-sidebar); padding: 40px 25px; border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
         #viewer-container { flex: 1; display: flex; background: var(--border); gap: 1px; }
-        
         canvas { width: 50%; height: 100vh; background: var(--bg-viewer); cursor: crosshair; }
-        
         h3 { color: var(--accent); font-size: 1.2rem; margin: 0 0 10px 0; letter-spacing: -0.02em; font-weight: 700; }
-        
         #status { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 40px; display: block; }
-        
-        .info-card {
-            background: #fff;
-            padding: 18px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-
+        .info-card { background: #fff; padding: 18px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .info-card span { display: block; font-size: 0.7rem; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
         .info-card p { margin: 0; font-size: 0.9rem; font-weight: 500; color: #444; }
-
-        .controls-info { 
-            margin-top: auto; 
-            font-size: 0.8rem; 
-            color: #777; 
-            line-height: 1.8; 
-            padding: 20px;
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-        }
+        .controls-info { margin-top: auto; font-size: 0.8rem; color: #777; line-height: 1.8; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
     <div id="sidebar">
         <h3>SatSplat View</h3>
         <span id="status">Syncing Viewports...</span>
-        
-        <div class="info-card">
-            <span>Left View</span>
-            <p>JAX_068: Step 1 Baked</p>
-        </div>
-        
-        <div class="info-card">
-            <span>Right View</span>
-            <p>JAX_068: Step 2 Baked</p>
-        </div>
-
+        <div class="info-card"><span>Left View</span><p>JAX_068: Step 1 Baked</p></div>
+        <div class="info-card"><span>Right View</span><p>JAX_068: Step 2 Baked</p></div>
         <div class="controls-info">
             <strong>Navigation</strong><br>
             • Drag: Rotate View<br>
-            • Right Click Drag: Pan View<br>
+            • Right Click: Pan View<br>
             • Scroll: Zoom<br><br>
             <em>* Left side controls both views</em>
         </div>
