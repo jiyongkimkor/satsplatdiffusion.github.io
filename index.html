@@ -7,7 +7,7 @@
 
         let rendererA, rendererB, sceneA, sceneB, camera, controls;
         
-        // Model A: Original (Left side) / Model B: Diffusion Filtered (Right side)
+        // Model A: Original (Left) / Model B: Diffusion (Right)
         const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
         const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
 
@@ -47,7 +47,7 @@
             rendererA = new SPLAT.WebGLRenderer(canvasA);
             rendererB = new SPLAT.WebGLRenderer(canvasB);
 
-            // Responsive square resize
+            // Responsive square resize logic
             const resize = () => {
                 const sidebarWidth = 280;
                 const availableWidth = window.innerWidth - sidebarWidth;
@@ -57,6 +57,7 @@
                 rendererA.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 rendererB.setSize(size, size, Math.min(window.devicePixelRatio, 1.5));
                 
+                // Adjust container position dynamically
                 viewerContainer.style.width = `${size}px`;
                 viewerContainer.style.height = `${size}px`;
                 viewerContainer.style.left = `${sidebarWidth + (availableWidth - size) / 2}px`;
@@ -66,27 +67,28 @@
             window.addEventListener("resize", resize);
             resize();
 
-            // Setup Controls on the container
+            // Setup Controls on the viewer container
             controls = new SPLAT.OrbitControls(camera, viewerContainer);
             camera.position = new SPLAT.Vector3(1.0, -2.0, 1.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            // Swipe logic
+            // Swipe logic (Drag handle)
             let isDragging = false;
             const setSwipe = (clientX) => {
                 const rect = viewerContainer.getBoundingClientRect();
                 let percentage = (clientX - rect.left) / rect.width;
                 percentage = Math.max(0, Math.min(1, percentage)) * 100;
                 
-                // Original(A) on Left, Diffusion(B) on Right
+                // Original (A) on Left, Diffusion (B) on Right
                 canvasB.style.clipPath = `inset(0 0 0 ${percentage}%)`;
                 sliderLine.style.left = `${percentage}%`;
             };
 
-            // Capture swipe on handle only
+            // Event Listeners for handle drag
             handle.addEventListener("mousedown", (e) => { 
                 isDragging = true; 
-                e.stopPropagation(); // Prevents OrbitControls from starting
+                e.preventDefault();
+                e.stopPropagation(); // Prevents OrbitControls from capturing this event
             });
 
             window.addEventListener("mousemove", (e) => {
@@ -105,6 +107,7 @@
                 document.getElementById("status").innerText = "Ready to Compare";
             } catch (err) {
                 document.getElementById("status").innerText = "Load Error";
+                console.error(err);
             }
 
             const frame = () => {
@@ -119,17 +122,28 @@
     </script>
     <style>
         :root { --accent: #007aff; --border: #ececec; }
-        body { margin: 0; display: flex; background: #fff; font-family: -apple-system, sans-serif; overflow: hidden; }
-        #sidebar { width: 280px; background: #fcfcfc; padding: 40px 25px; border-right: 1px solid var(--border); z-index: 1000; }
+        body { margin: 0; display: flex; background: #fff; color: #333; font-family: -apple-system, sans-serif; overflow: hidden; height: 100vh; width: 100vw; }
         
-        /* Fixed position container */
+        /* Sidebar stays on the left */
+        #sidebar { 
+            width: 280px; 
+            min-width: 280px;
+            background: #fcfcfc; 
+            padding: 40px 25px; 
+            border-right: 1px solid var(--border); 
+            z-index: 100; 
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
         #viewer-container { 
-            position: fixed; 
+            position: absolute; /* Changed back to absolute to stay within flex context */
             background: #000; 
             border: 1px solid var(--border); 
             border-radius: 4px; 
             overflow: hidden; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             touch-action: none; 
         }
         
@@ -152,6 +166,8 @@
         .info-card { background: #fff; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; }
         .info-card b { color: var(--accent); display: block; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 4px; }
         .info-card p { margin: 0; font-size: 0.85rem; font-weight: 500; }
+        
+        .controls-info { margin-top: auto; font-size: 0.75rem; color: #888; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -160,6 +176,11 @@
         <span id="status">Syncing Viewports...</span>
         <div class="info-card"><b>Left Section</b><p>Step 1: Original</p></div>
         <div class="info-card"><b>Right Section</b><p>Step 2: Diffusion</p></div>
+        <div class="controls-info">
+            • Orbit: Click & Drag<br>
+            • Pan: Right-Click Drag<br>
+            • Swipe: Drag Center Handle
+        </div>
     </div>
     <div id="viewer-container">
         <canvas id="canvasA"></canvas>
