@@ -1,23 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Diffusion Comparison</title>
+    <title>SatSplat: Model Selector</title>
     <script type="module">
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
-        let rendererA, rendererB, sceneA, sceneB, camera, controls;
+        let renderer, camera, controls;
+        let currentScene = null;
+        const scenes = {};
 
-        const MODEL_A_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true";
-        const MODEL_B_DEFAULT = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true";
+        const MODELS = {
+            asp: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_asp.ply?download=true",
+            step1: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true",
+            step2: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true"
+        };
 
-        /**
-         * Model Loader with Centering Logic
-         * Note: Large models cause main-thread lag during this loop.
-         */
-        async function loadModel(url, scene) {
-            scene.reset();
+        async function loadModel(key, url) {
+            const scene = new SPLAT.Scene();
             await SPLAT.PLYLoader.LoadAsync(url, scene);
-
+            
             const obj = scene.objects[0];
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
@@ -30,299 +31,103 @@
                     minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
                 }
 
-                const cX = (minX + maxX) / 2;
-                const cY = (minY + maxY) / 2;
-                const cZ = (minZ + maxZ) / 2;
-
+                const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
                 for (let i = 0; i < pos.length; i += 3) {
-                    pos[i] -= cX;
-                    pos[i+1] -= cY;
-                    pos[i+2] -= cZ;
+                    pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
                 }
             }
-
-            obj.rotation = SPLAT.Quaternion.FromEuler(
-                new SPLAT.Vector3(Math.PI / 2, 0, 0)
-            );
+            obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+            scenes[key] = scene;
         }
 
         async function main() {
-            const canvasA = document.getElementById("canvasA");
-            const canvasB = document.getElementById("canvasB");
-            const viewerContainer = document.getElementById("viewer-container");
-            const handle = document.getElementById("swipe-handle");
-            const sliderLine = document.getElementById("slider-line");
-            const sidebar = document.getElementById("sidebar");
-            const sidebarHeader = document.getElementById("sidebar-header");
-
-            sceneA = new SPLAT.Scene();
-            sceneB = new SPLAT.Scene();
+            const canvas = document.getElementById("mainCanvas");
+            renderer = new SPLAT.WebGLRenderer(canvas);
             camera = new SPLAT.Camera();
+            controls = new SPLAT.OrbitControls(camera, canvas);
 
-            // Set pixel ratio to 1.0 to prevent massive GPU overhead on Retina/4K displays
-            rendererA = new SPLAT.WebGLRenderer(canvasA);
-            rendererB = new SPLAT.WebGLRenderer(canvasB);
-
-            const resize = () => {
-                const viewerArea = document.getElementById("viewer-area");
-                const size = Math.min(viewerArea.clientWidth, viewerArea.clientHeight) - 40;
-                
-                // PERFORMANCE FIX: cap devicePixelRatio at 1.0 for dual-renderer stability
-                rendererA.setSize(size, size, 1.0);
-                rendererB.setSize(size, size, 1.0);
-                
-                viewerContainer.style.width = `${size}px`;
-                viewerContainer.style.height = `${size}px`;
-            };
-
-            // Use ResizeObserver for more efficient resize handling than window event
-            const resizeObserver = new ResizeObserver(resize);
-            resizeObserver.observe(document.getElementById("viewer-area"));
-            resize();
-
-            controls = new SPLAT.OrbitControls(camera, viewerContainer);
-            camera.position = new SPLAT.Vector3(1.0, -0.5, 0.0);
+            camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            /* ======================
-               Swipe Comparison Logic
-            ====================== */
-            let isDraggingSwipe = false;
+            const resize = () => {
+                renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
+            };
+            window.addEventListener("resize", resize);
+            resize();
 
-            const setSwipe = (clientX) => {
-                const rect = viewerContainer.getBoundingClientRect();
-                let percentage = (clientX - rect.left) / rect.width;
-                percentage = Math.max(0, Math.min(1, percentage)) * 100;
-
-                // CSS Clip-path is efficient, but rendering occurs behind hidden areas
-                canvasB.style.clipPath = `inset(0 0 0 ${percentage}%)`;
-                sliderLine.style.left = `${percentage}%`;
+            // 전역 함수로 등록하여 HTML 버튼에서 호출 가능하게 함
+            window.switchModel = (key) => {
+                if (!scenes[key]) return;
+                currentScene = scenes[key];
+                
+                // 버튼 스타일 업데이트
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`btn-${key}`).classList.add('active');
             };
 
-            handle.addEventListener("mousedown", (e) => {
-                isDraggingSwipe = true;
-                e.stopPropagation();
-            });
-
-            /* ======================
-               Sidebar Drag Logic (Optimized)
-            ====================== */
-            let isDraggingSidebar = false;
-            let currentX = 30;
-            let currentY = 30;
-            let startMouseX = 0;
-            let startMouseY = 0;
-
-            sidebarHeader.addEventListener("mousedown", (e) => {
-                isDraggingSidebar = true;
-                startMouseX = e.clientX;
-                startMouseY = e.clientY;
-                sidebar.style.cursor = "grabbing";
-                e.preventDefault();
-                e.stopPropagation();
-            });
-
-            window.addEventListener("mousemove", (e) => {
-                if (isDraggingSwipe) setSwipe(e.clientX);
-
-                if (isDraggingSidebar) {
-                    const deltaX = e.clientX - startMouseX;
-                    const deltaY = e.clientY - startMouseY;
-                    // Use transform for 60fps UI movement even during heavy GPU load
-                    sidebar.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`;
-                }
-            });
-
-            window.addEventListener("mouseup", (e) => {
-                if (isDraggingSidebar) {
-                    const deltaX = e.clientX - startMouseX;
-                    const deltaY = e.clientY - startMouseY;
-                    currentX += deltaX;
-                    currentY += deltaY;
-                    
-                    sidebar.style.left = `${currentX}px`;
-                    sidebar.style.top = `${currentY}px`;
-                    sidebar.style.transform = "translate3d(0, 0, 0)";
-                }
-                
-                isDraggingSwipe = false;
-                isDraggingSidebar = false;
-                sidebar.style.cursor = "grab";
-            });
-
-            /* ======================
-               Model Loading
-            ====================== */
             const statusEl = document.getElementById("status");
             statusEl.innerText = "Loading Models...";
 
             try {
-                // Loading in parallel
-                await Promise.all([
-                    loadModel(MODEL_A_DEFAULT, sceneA),
-                    loadModel(MODEL_B_DEFAULT, sceneB)
-                ]);
-                statusEl.innerText = "Ready";
+                // 병렬 로드
+                await Promise.all(Object.entries(MODELS).map(([k, v]) => loadModel(k, v)));
+                statusEl.innerText = "All Models Loaded";
+                
+                // 기본값으로 ASP 설정
+                window.switchModel('asp');
             } catch (err) {
+                statusEl.innerText = "Error Loading Models";
                 console.error(err);
-                statusEl.innerText = "Error Loading PLY";
             }
 
-            /**
-             * Optimized Animation Loop
-             */
             const frame = () => {
                 controls.update();
-                
-                // Draw calls - this is the bottleneck. 
-                // Reducing resolution in setSize() is the best remedy here.
-                rendererA.render(sceneA, camera);
-                rendererB.render(sceneB, camera);
-                
+                if (currentScene) {
+                    renderer.render(currentScene, camera);
+                }
                 requestAnimationFrame(frame);
             };
-
             requestAnimationFrame(frame);
         }
 
         main();
     </script>
-
     <style>
-        :root { --accent: #007aff; --border: #ececec; }
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            background: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; }
+        
+        /* 상단 네비게이션 바 */
+        #nav-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); padding: 10px; border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1); z-index: 100;
         }
 
-        #sidebar {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            width: 280px;
-            background: rgba(252, 252, 252, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            z-index: 200;
-            user-select: none;
-            will-change: transform; 
+        .nav-btn {
+            padding: 10px 24px; border: none; background: transparent;
+            color: white; cursor: pointer; border-radius: 25px;
+            font-weight: 600; font-size: 14px; transition: all 0.2s;
         }
 
-        #sidebar-header {
-            cursor: grab;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .nav-btn.active { background: #007aff; color: white; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3); }
+
+        #status {
+            position: absolute; bottom: 20px; right: 20px;
+            color: rgba(255, 255, 255, 0.5); font-size: 12px; z-index: 100;
         }
 
-        h3 { color: var(--accent); margin: 0; pointer-events: none; font-size: 1.1rem; }
-        #status { font-size: 0.75rem; color: #888; pointer-events: none; font-weight: 500; }
-
-        .info-card {
-            background: #fff;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-top: 10px;
-            pointer-events: none;
-            font-size: 0.9rem;
-        }
-
-        .info-card b {
-            color: var(--accent);
-            font-size: 0.6rem;
-            text-transform: uppercase;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        #viewer-area {
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f0f0f0;
-        }
-
-        #viewer-container {
-            position: relative;
-            background: #000;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100% !important;
-            height: 100% !important;
-            pointer-events: none;
-        }
-
-        #slider-line {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 50%;
-            width: 2px;
-            background: rgba(255,255,255,0.5);
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        #swipe-handle {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            background: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: col-resize;
-            pointer-events: all;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        #swipe-handle::after {
-            content: '↔';
-            color: var(--accent);
-            font-weight: bold;
-        }
+        canvas { display: block; width: 100vw; height: 100vh; cursor: move; }
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <div id="sidebar-header">
-            <h3>SatSplat Comparison</h3>
-            <span id="status">Initializing...</span>
-        </div>
-        <div class="info-card"><b>Left Section</b>Step 1: Original Reconstruction</div>
-        <div class="info-card"><b>Right Section</b>Step 2: Diffusion Enhancement</div>
+    <div id="nav-bar">
+        <button id="btn-asp" class="nav-btn" onclick="switchModel('asp')">ASP</button>
+        <button id="btn-step1" class="nav-btn" onclick="switchModel('step1')">Step 1</button>
+        <button id="btn-step2" class="nav-btn" onclick="switchModel('step2')">Step 2</button>
     </div>
 
-    <div id="viewer-area">
-        <div id="viewer-container">
-            <canvas id="canvasA"></canvas>
-            <canvas id="canvasB"></canvas>
-            <div id="slider-line">
-                <div id="swipe-handle"></div>
-            </div>
-        </div>
-    </div>
+    <div id="status">Initializing...</div>
+    <canvas id="mainCanvas"></canvas>
 </body>
 </html>
