@@ -13,12 +13,6 @@
         const SITES = ["068", "214", "251", "260"];
         const BASE_URL = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main";
 
-        const DESCRIPTIONS = {
-            asp: "<b>Traditional Reconstruction:</b> Initial structure from Ames Stereo Pipeline (ASP). Characterized by high geometric noise and artifacts.",
-            step1: "<b>Gaussian Splatting:</b> Point cloud converted to 3D Gaussians. Establishes surface continuity but lacks high-frequency details.",
-            step2: "<b>Iterative Diffusion Refinement:</b> Latest refinement approach. Enhances geometry and textures through iterative diffusion for realistic results."
-        };
-
         function getUrl(site, type) {
             const suffix = type === "asp" ? "asp" : `${type}_baked`;
             return `${BASE_URL}/JAX_${site}_${suffix}.ply?download=true`;
@@ -77,7 +71,6 @@
             currentScene = scenes[key];
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${type}`).classList.add('active');
-            document.getElementById("description").innerHTML = DESCRIPTIONS[type];
         };
 
         window.changeSite = (e) => updateSite(e.target.value);
@@ -87,7 +80,7 @@
             renderer = new SPLAT.WebGLRenderer(canvas);
             camera = new SPLAT.Camera();
             controls = new SPLAT.OrbitControls(camera, canvas);
-            camera.position = new SPLAT.Vector3(1.0, -0.5, 0.0);
+            camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
             const resize = () => renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
@@ -112,19 +105,17 @@
             z-index: 100; display: flex; justify-content: space-between; align-items: flex-start;
         }
         h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
-        p { margin: 4px 0 0; font-size: 0.8rem; color: #aaa; letter-spacing: 0.5px; }
+        .subtitle { margin: 4px 0 0; font-size: 0.8rem; color: #aaa; letter-spacing: 0.5px; }
+        .workflow { margin-top: 8px; font-size: 0.75rem; color: #007aff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        
         #site-selector {
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
             color: white; padding: 10px 15px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;
         }
+
         #nav-container {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; z-index: 100;
-        }
-        #description {
-            background: rgba(0, 0, 0, 0.6); padding: 12px 25px; border-radius: 20px;
-            font-size: 13px; max-width: 650px; text-align: center; color: #eee;
-            border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; z-index: 100;
         }
         #nav-bar {
             display: flex; gap: 10px; background: rgba(20, 20, 20, 0.8);
@@ -137,7 +128,7 @@
             font-weight: 600; font-size: 12px; transition: all 0.2s; opacity: 0.3;
         }
         .nav-btn.active { background: #007aff; color: white; opacity: 1 !important; }
-        #status-bar { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1.5px; }
+        #status-bar { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1.5px; }
         canvas { display: block; width: 100vw; height: 100vh; }
     </style>
 </head>
@@ -145,7 +136,8 @@
     <div id="header">
         <div>
             <h1>3D Reconstruction with Satellite Images</h1>
-            <p>From Traditional Pipeline to Modern Methods</p>
+            <p class="subtitle">From Traditional Pipeline to Modern Methods</p>
+            <p class="workflow">ASP &nbsp; → &nbsp; SatSplat &nbsp; → &nbsp; SatSplat-Diffusion</p>
         </div>
         <select id="site-selector" onchange="changeSite(event)">
             <option value="068">JAX_068</option>
@@ -156,11 +148,10 @@
     </div>
 
     <div id="nav-container">
-        <div id="description">Select a step to visualize the refinement process.</div>
         <div id="nav-bar">
-            <button id="btn-asp" class="nav-btn" onclick="switchType('asp')">ASP (Traditional)</button>
-            <button id="btn-step1" class="nav-btn" onclick="switchType('step1')">Step 1 (Gaussian)</button>
-            <button id="btn-step2" class="nav-btn" onclick="switchType('step2')">Step 2 (Iterative Diffusion)</button>
+            <button id="btn-asp" class="nav-btn" onclick="switchType('asp')">ASP</button>
+            <button id="btn-step1" class="nav-btn" onclick="switchType('step1')">SatSplat</button>
+            <button id="btn-step2" class="nav-btn" onclick="switchType('step2')">SatSplat-Diffusion</button>
         </div>
         <div id="status-bar"><span id="status-text">Connecting...</span></div>
     </div>
