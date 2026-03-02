@@ -1,161 +1,192 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SatSplat: 3D Satellite Reconstruction</title>
-    <script type="module">
-        import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
-
-        let renderer, camera, controls;
-        let currentScene = null;
-        let currentSite = "068";
-        const scenes = {};
-
-        const SITES = ["068", "214", "251", "260"];
-        const BASE_URL = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main";
-
-        function getUrl(site, type) {
-            const suffix = type === "asp" ? "asp" : `${type}_baked`;
-            return `${BASE_URL}/JAX_${site}_${suffix}.ply?download=true`;
-        }
-
-        async function loadSingleModel(site, type) {
-            const key = `${site}_${type}`;
-            if (scenes[key]) return scenes[key];
-
-            const scene = new SPLAT.Scene();
-            await SPLAT.PLYLoader.LoadAsync(getUrl(site, type), scene);
-            
-            const obj = scene.objects[0];
-            if (obj && obj.data && obj.data.positions) {
-                const pos = obj.data.positions;
-                let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-                for (let i = 0; i < pos.length; i += 3) {
-                    minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
-                    minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
-                    minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
-                }
-                const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
-                for (let i = 0; i < pos.length; i += 3) {
-                    pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
-                }
-            }
-            obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
-            scenes[key] = scene;
-            return scene;
-        }
-
-        async function updateSite(site) {
-            currentSite = site;
-            document.getElementById("status-text").innerText = `Updating Site: ${site}`;
-            document.querySelectorAll('.nav-btn').forEach(b => { b.disabled = true; b.style.opacity = "0.3"; });
-
-            const firstScene = await loadSingleModel(site, "asp");
-            currentScene = firstScene;
-            switchType("asp");
-
-            document.getElementById("btn-asp").disabled = false;
-            document.getElementById("btn-asp").style.opacity = "1";
-
-            ["step1", "step2"].forEach(async (type) => {
-                await loadSingleModel(site, type);
-                const btn = document.getElementById(`btn-${type}`);
-                btn.disabled = false;
-                btn.style.opacity = "1";
-                if(type === "step2") document.getElementById("status-text").innerText = `Site ${site} Ready`;
-            });
-        }
-
-        window.switchType = (type) => {
-            const key = `${currentSite}_${type}`;
-            if (!scenes[key]) return;
-            currentScene = scenes[key];
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`btn-${type}`).classList.add('active');
-        };
-
-        window.changeSite = (e) => updateSite(e.target.value);
-
-        async function main() {
-            const canvas = document.getElementById("mainCanvas");
-            renderer = new SPLAT.WebGLRenderer(canvas);
-            camera = new SPLAT.Camera();
-            controls = new SPLAT.OrbitControls(camera, canvas);
-            camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
-            controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
-
-            const resize = () => renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
-            window.addEventListener("resize", resize);
-            resize();
-
-            const frame = () => {
-                controls.update();
-                if (currentScene) renderer.render(currentScene, camera);
-                requestAnimationFrame(frame);
-            };
-            requestAnimationFrame(frame);
-            updateSite("068");
-        }
-        main();
-    </script>
     <style>
-        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
+        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; -webkit-tap-highlight-color: transparent; }
         #header {
             position: absolute; top: 0; left: 0; right: 0;
-            padding: 30px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-            z-index: 100; display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 20px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            z-index: 100; display: flex; flex-direction: column; gap: 15px;
         }
-        h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
-        .subtitle { margin: 4px 0 0; font-size: 0.8rem; color: #aaa; letter-spacing: 0.5px; }
-        .workflow { margin-top: 8px; font-size: 0.75rem; color: #007aff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-        
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.6rem; font-weight: 800; line-height: 1.2; }
+        .subtitle { margin: 4px 0 0; font-size: 1rem; color: #aaa; }
+        .workflow { margin-top: 5px; font-size: 0.9rem; color: #007aff; font-weight: 700; letter-spacing: 0.5px; }
         #site-selector {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; padding: 10px 15px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+            color: white; padding: 12px 18px; border-radius: 12px; font-size: 1rem; font-weight: 600; outline: none; cursor: pointer;
         }
-
         #nav-container {
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; z-index: 100;
+            position: absolute; bottom: 40px; left: 0; right: 0;
+            display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; z-index: 100;
         }
         #nav-bar {
-            display: flex; gap: 10px; background: rgba(20, 20, 20, 0.8);
-            backdrop-filter: blur(15px); padding: 8px; border-radius: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; gap: 8px; background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 10px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 95%;
         }
         .nav-btn {
-            padding: 10px 22px; border: none; background: transparent;
-            color: white; cursor: pointer; border-radius: 12px;
-            font-weight: 600; font-size: 12px; transition: all 0.2s; opacity: 0.3;
+            position: relative; padding: 14px 16px; border: none; background: transparent;
+            color: white; cursor: pointer; border-radius: 14px;
+            font-weight: 700; font-size: 0.85rem; transition: all 0.2s; opacity: 0.3;
+            overflow: hidden; flex: 1; white-space: nowrap;
+            --progress: 0%;
         }
-        .nav-btn.active { background: #007aff; color: white; opacity: 1 !important; }
-        #status-bar { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1.5px; }
-        canvas { display: block; width: 100vw; height: 100vh; }
+        .nav-btn::after {
+            content: ''; position: absolute; bottom: 0; left: 0;
+            height: 4px; width: var(--progress); background: #007aff;
+            transition: width 0.1s ease-out;
+        }
+        .nav-btn.active { background: rgba(255, 255, 255, 0.15); opacity: 1 !important; }
+        #status-bar { font-size: 0.8rem; color: #666; font-weight: 700; letter-spacing: 1px; }
+        canvas { display: block; width: 100vw; height: 100vh; outline: none; }
     </style>
 </head>
 <body>
     <div id="header">
-        <div>
-            <h1>3D Reconstruction with Satellite Images</h1>
-            <p class="subtitle">From Traditional Pipeline to Modern Methods</p>
-            <p class="workflow">ASP &nbsp; → &nbsp; SatSplat &nbsp; → &nbsp; SatSplat-Diffusion</p>
+        <div class="header-top">
+            <div>
+                <h1>3D Satellite Recon</h1>
+                <p class="subtitle">Traditional to Modern Methods</p>
+                <p class="workflow">ASP → Skyfall → Ours (Step 1) → Ours (Step 2)</p>
+            </div>
+            <select id="site-selector">
+                <option value="068">JAX_068</option>
+                <option value="214">JAX_214</option>
+                <option value="251">JAX_251</option>
+                <option value="260">JAX_260</option>
+            </select>
         </div>
-        <select id="site-selector" onchange="changeSite(event)">
-            <option value="068">JAX_068</option>
-            <option value="214">JAX_214</option>
-            <option value="251">JAX_251</option>
-            <option value="260">JAX_260</option>
-        </select>
     </div>
 
     <div id="nav-container">
         <div id="nav-bar">
-            <button id="btn-asp" class="nav-btn" onclick="switchType('asp')">ASP</button>
-            <button id="btn-step1" class="nav-btn" onclick="switchType('step1')">SatSplat</button>
-            <button id="btn-step2" class="nav-btn" onclick="switchType('step2')">SatSplat-Diffusion</button>
+            <button id="btn-asp" class="nav-btn">ASP</button>
+            <button id="btn-skyfall" class="nav-btn">Skyfall-GS</button>
+            <button id="btn-step1" class="nav-btn">Ours (Step 1)</button>
+            <button id="btn-step2" class="nav-btn">Ours (Step 2)</button>
         </div>
-        <div id="status-bar"><span id="status-text">Connecting...</span></div>
+        <div id="status-bar"><span id="status-text">CONNECTING...</span></div>
     </div>
 
     <canvas id="mainCanvas"></canvas>
+
+    <script type="module">
+        import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
+
+        let renderer, camera, controls, scene;
+        let currentSite = "068";
+        const objectsStore = {};
+        const BASE_URL = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main";
+
+        async function init() {
+            const canvas = document.getElementById("mainCanvas");
+            renderer = new SPLAT.WebGLRenderer(canvas);
+            camera = new SPLAT.Camera();
+            controls = new SPLAT.OrbitControls(camera, canvas);
+            scene = new SPLAT.Scene();
+            camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
+            controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
+
+            window.addEventListener("resize", () => renderer.setSize(window.innerWidth, window.innerHeight));
+
+            document.getElementById("site-selector").addEventListener("change", (e) => updateSite(e.target.value));
+            document.getElementById("btn-asp").addEventListener("click", () => switchType("asp"));
+            document.getElementById("btn-skyfall").addEventListener("click", () => switchType("skyfall"));
+            document.getElementById("btn-step1").addEventListener("click", () => switchType("step1"));
+            document.getElementById("btn-step2").addEventListener("click", () => switchType("step2"));
+
+            const frame = () => {
+                controls.update();
+                renderer.render(scene, camera);
+                requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
+
+            updateSite("068");
+        }
+
+        async function loadModel(site, type) {
+            const key = `${site}_${type}`;
+            if (objectsStore[key]) return objectsStore[key];
+
+            let suffix;
+            if (type === "asp") suffix = "asp";
+            else if (type === "skyfall") suffix = "skyfall_baked";
+            else suffix = `${type}_baked`;
+
+            const url = `${BASE_URL}/JAX_${site}_${suffix}.ply?download=true`;
+
+            try {
+                const tempScene = new SPLAT.Scene();
+                await SPLAT.PLYLoader.LoadAsync(url, tempScene, (p) => updateProgress(type, p * 100));
+                
+                const obj = tempScene.objects[0];
+                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+                
+                objectsStore[key] = obj;
+                
+                const btn = document.getElementById(`btn-${type}`);
+                if(btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = "1";
+                }
+                
+                return obj;
+            } catch (err) {
+                console.error(err);
+                return null;
+            }
+        }
+
+        async function updateSite(site) {
+            currentSite = site;
+            document.getElementById("status-text").innerText = `SITE: ${site} LOADING...`;
+            
+            ["asp", "skyfall", "step1", "step2"].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                btn.disabled = true;
+                btn.style.opacity = "0.3";
+                btn.classList.remove('active');
+                btn.style.setProperty('--progress', '0%');
+            });
+
+            scene.reset();
+
+            const firstObj = await loadModel(site, "asp");
+            if (firstObj && currentSite === site) {
+                scene.addObject(firstObj);
+                document.getElementById("btn-asp").classList.add('active');
+                document.getElementById("status-text").innerText = `SITE: ${site} READY`;
+            }
+
+            loadModel(site, "skyfall");
+            loadModel(site, "step1");
+            loadModel(site, "step2");
+        }
+
+        function switchType(type) {
+            const key = `${currentSite}_${type}`;
+            const obj = objectsStore[key];
+            if (!obj) return;
+
+            scene.reset();
+            scene.addObject(obj);
+
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${type}`).classList.add('active');
+        }
+
+        function updateProgress(type, percent) {
+            const btn = document.getElementById(`btn-${type}`);
+            if (btn) btn.style.setProperty('--progress', `${percent}%`);
+        }
+
+        init();
+    </script>
 </body>
 </html>
