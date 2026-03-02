@@ -28,12 +28,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .nav-btn {
-            padding: 10px 30px; border: none; background: transparent;
+            position: relative; padding: 10px 30px; border: none; background: transparent;
             color: white; cursor: pointer; border-radius: 12px;
             font-weight: 600; font-size: 11px; transition: all 0.2s; opacity: 0.3;
-            white-space: nowrap;
+            white-space: nowrap; overflow: hidden;
+            --progress: 0%;
         }
-        .nav-btn.active { background: #007aff; color: white; opacity: 1 !important; }
+        .nav-btn::before {
+            content: ""; position: absolute; bottom: 0; left: 0; height: 3px;
+            width: var(--progress); background: #007aff; transition: width 0.1s ease;
+        }
+        .nav-btn.active { background: rgba(0, 122, 255, 0.2); opacity: 1 !important; border: 1px solid rgba(0, 122, 255, 0.5); }
         #status-bar { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1.5px; }
         canvas { display: block; width: 100vw; height: 100vh; outline: none; }
     </style>
@@ -81,12 +86,20 @@
             return `${BASE_URL}/JAX_${site}_${suffix}.ply?download=true`;
         }
 
+        function updateProgress(type, percent) {
+            const btn = document.getElementById(`btn-${type}`);
+            if (btn) btn.style.setProperty('--progress', `${percent}%`);
+        }
+
         async function loadSingleModel(site, type) {
             const key = `${site}_${type}`;
-            if (scenes[key]) return scenes[key];
+            if (scenes[key]) {
+                updateProgress(type, 100);
+                return scenes[key];
+            }
 
             const scene = new SPLAT.Scene();
-            await SPLAT.PLYLoader.LoadAsync(getUrl(site, type), scene);
+            await SPLAT.PLYLoader.LoadAsync(getUrl(site, type), scene, (p) => updateProgress(type, p * 100));
             
             const obj = scene.objects[0];
             if (obj && obj.data && obj.data.positions) {
@@ -110,7 +123,11 @@
         async function updateSite(site) {
             currentSite = site;
             document.getElementById("status-text").innerText = `Updating Site: ${site}`;
-            document.querySelectorAll('.nav-btn').forEach(b => { b.disabled = true; b.style.opacity = "0.3"; });
+            document.querySelectorAll('.nav-btn').forEach(b => { 
+                b.disabled = true; 
+                b.style.opacity = "0.3"; 
+                b.style.setProperty('--progress', '0%');
+            });
 
             const firstScene = await loadSingleModel(site, "asp");
             if (currentSite === site) {
