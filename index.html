@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SatSplat: Model Selector</title>
+    <title>SatSplat: Multi-Site Selector</title>
     <script type="module">
         import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
 
@@ -9,35 +9,60 @@
         let currentScene = null;
         const scenes = {};
 
-        const MODELS = {
-            asp: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_asp.ply?download=true",
-            step1: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true",
-            step2: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true"
+        const SITES = ["068", 214, 251, 260];
+        const STEPS = ["asp", "step1", "step2"];
+        
+        let activeSite = "068";
+        let activeStep = "asp";
+
+        const getUrl = (site, step) => {
+            const suffix = step === "asp" ? "asp" : `${step}_baked`;
+            return `https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_${site}_${suffix}.ply?download=true`;
         };
 
-        async function loadModel(key, url) {
+        async function loadModel(site, step) {
+            const key = `${site}_${step}`;
+            if (scenes[key]) return;
+
             const scene = new SPLAT.Scene();
-            await SPLAT.PLYLoader.LoadAsync(url, scene);
-            
-            const obj = scene.objects[0];
-            if (obj && obj.data && obj.data.positions) {
-                const pos = obj.data.positions;
-                let minX = Infinity, minY = Infinity, minZ = Infinity;
-                let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-
-                for (let i = 0; i < pos.length; i += 3) {
-                    minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
-                    minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
-                    minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
+            try {
+                await SPLAT.PLYLoader.LoadAsync(getUrl(site, step), scene);
+                const obj = scene.objects[0];
+                if (obj && obj.data && obj.data.positions) {
+                    const pos = obj.data.positions;
+                    let minX = Infinity, minY = Infinity, minZ = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+                    for (let i = 0; i < pos.length; i += 3) {
+                        minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
+                        minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
+                        minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
+                    }
+                    const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
+                    for (let i = 0; i < pos.length; i += 3) {
+                        pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
+                    }
                 }
-
-                const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
-                for (let i = 0; i < pos.length; i += 3) {
-                    pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
-                }
+                obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+                scenes[key] = scene;
+            } catch (e) {
+                console.error(`Failed to load ${key}`, e);
             }
-            obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
-            scenes[key] = scene;
+        }
+
+        async function updateDisplay() {
+            const statusEl = document.getElementById("status");
+            const key = `${activeSite}_${activeStep}`;
+            
+            if (!scenes[key]) {
+                statusEl.innerText = `Loading Site ${activeSite}...`;
+                await Promise.all(STEPS.map(step => loadModel(activeSite, step)));
+            }
+            
+            currentScene = scenes[key];
+            statusEl.innerText = `Site ${activeSite} - ${activeStep.toUpperCase()}`;
+            
+            document.querySelectorAll('.site-btn').forEach(b => b.classList.toggle('active', b.dataset.site == activeSite));
+            document.querySelectorAll('.step-btn').forEach(b => b.classList.toggle('active', b.dataset.step == activeStep));
         }
 
         async function main() {
@@ -49,42 +74,18 @@
             camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            const resize = () => {
-                renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
-            };
+            const resize = () => renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
             window.addEventListener("resize", resize);
             resize();
 
-            // 전역 함수로 등록하여 HTML 버튼에서 호출 가능하게 함
-            window.switchModel = (key) => {
-                if (!scenes[key]) return;
-                currentScene = scenes[key];
-                
-                // 버튼 스타일 업데이트
-                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(`btn-${key}`).classList.add('active');
-            };
+            window.setSite = (site) => { activeSite = site; updateDisplay(); };
+            window.setStep = (step) => { activeStep = step; updateDisplay(); };
 
-            const statusEl = document.getElementById("status");
-            statusEl.innerText = "Loading Models...";
-
-            try {
-                // 병렬 로드
-                await Promise.all(Object.entries(MODELS).map(([k, v]) => loadModel(k, v)));
-                statusEl.innerText = "All Models Loaded";
-                
-                // 기본값으로 ASP 설정
-                window.switchModel('asp');
-            } catch (err) {
-                statusEl.innerText = "Error Loading Models";
-                console.error(err);
-            }
+            await updateDisplay();
 
             const frame = () => {
                 controls.update();
-                if (currentScene) {
-                    renderer.render(currentScene, camera);
-                }
+                if (currentScene) renderer.render(currentScene, camera);
                 requestAnimationFrame(frame);
             };
             requestAnimationFrame(frame);
@@ -93,38 +94,49 @@
         main();
     </script>
     <style>
-        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; }
-        
-        /* 상단 네비게이션 바 */
-        #nav-bar {
+        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
+        #ui-container {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 10px; background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px); padding: 10px; border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.1); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 100;
         }
-
-        .nav-btn {
-            padding: 10px 24px; border: none; background: transparent;
-            color: white; cursor: pointer; border-radius: 25px;
-            font-weight: 600; font-size: 14px; transition: all 0.2s;
+        .nav-group {
+            display: flex; gap: 8px; background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px); padding: 6px; border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .nav-btn:hover { background: rgba(255, 255, 255, 0.15); }
-        .nav-btn.active { background: #007aff; color: white; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3); }
-
-        #status {
-            position: absolute; bottom: 20px; right: 20px;
-            color: rgba(255, 255, 255, 0.5); font-size: 12px; z-index: 100;
+        .btn {
+            padding: 8px 18px; border: none; background: transparent;
+            color: rgba(255,255,255,0.6); cursor: pointer; border-radius: 20px;
+            font-weight: 600; font-size: 13px; transition: all 0.2s;
         }
-
+        .btn:hover { color: white; background: rgba(255, 255, 255, 0.1); }
+        .btn.active { background: #007aff; color: white; }
+        
+        .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.5; }
+        #status { position: absolute; bottom: 20px; right: 20px; color: rgba(255, 255, 255, 0.5); font-size: 12px; }
         canvas { display: block; width: 100vw; height: 100vh; cursor: move; }
     </style>
 </head>
 <body>
-    <div id="nav-bar">
-        <button id="btn-asp" class="nav-btn" onclick="switchModel('asp')">ASP</button>
-        <button id="btn-step1" class="nav-btn" onclick="switchModel('step1')">Step 1</button>
-        <button id="btn-step2" class="nav-btn" onclick="switchModel('step2')">Step 2</button>
+    <div id="ui-container">
+        <div style="text-align: center;">
+            <div class="label">Select Site</div>
+            <div class="nav-group">
+                <button class="btn site-btn" data-site="068" onclick="setSite('068')">068</button>
+                <button class="btn site-btn" data-site="214" onclick="setSite('214')">214</button>
+                <button class="btn site-btn" data-site="251" onclick="setSite('251')">251</button>
+                <button class="btn site-btn" data-site="260" onclick="setSite('260')">260</button>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <div class="label">Select Refinement Step</div>
+            <div class="nav-group">
+                <button class="btn step-btn" data-step="asp" onclick="setStep('asp')">ASP</button>
+                <button class="btn step-btn" data-step="step1" onclick="setStep('step1')">Step 1</button>
+                <button class="btn step-btn" data-step="step2" onclick="setStep('step2')">Step 2</button>
+            </div>
+        </div>
     </div>
 
     <div id="status">Initializing...</div>
