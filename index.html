@@ -7,33 +7,39 @@
 
         let renderer, camera, controls;
         let currentScene = null;
+        let currentSite = "068";
         const scenes = {};
 
-        const MODELS = {
-            asp: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_asp.ply?download=true",
-            step1: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step1_baked.ply?download=true",
-            step2: "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main/JAX_068_step2_baked.ply?download=true"
+        const SITES = ["068", "214", "251", "260"];
+        const BASE_URL = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main";
+
+        const DESCRIPTIONS = {
+            asp: "<b>Traditional Reconstruction:</b> Initial structure from Ames Stereo Pipeline (ASP). Characterized by high geometric noise and artifacts.",
+            step1: "<b>Gaussian Splatting:</b> Point cloud converted to 3D Gaussians. Establishes surface continuity but lacks high-frequency details.",
+            step2: "<b>Iterative Diffusion Refinement:</b> Latest refinement approach. Enhances geometry and textures through iterative diffusion for realistic results."
         };
 
-        async function loadSingleModel(key, url) {
-            const btn = document.getElementById(`btn-${key}`);
-            if(btn) btn.innerText = `Loading...`;
+        function getUrl(site, type) {
+            const suffix = type === "asp" ? "asp" : `${type}_baked`;
+            return `${BASE_URL}/JAX_${site}_${suffix}.ply?download=true`;
+        }
+
+        async function loadSingleModel(site, type) {
+            const key = `${site}_${type}`;
+            if (scenes[key]) return scenes[key];
 
             const scene = new SPLAT.Scene();
-            await SPLAT.PLYLoader.LoadAsync(url, scene);
+            await SPLAT.PLYLoader.LoadAsync(getUrl(site, type), scene);
             
             const obj = scene.objects[0];
             if (obj && obj.data && obj.data.positions) {
                 const pos = obj.data.positions;
-                let minX = Infinity, minY = Infinity, minZ = Infinity;
-                let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-
+                let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
                 for (let i = 0; i < pos.length; i += 3) {
                     minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
                     minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
                     minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
                 }
-
                 const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
                 for (let i = 0; i < pos.length; i += 3) {
                     pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ;
@@ -41,51 +47,52 @@
             }
             obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
             scenes[key] = scene;
-
-            if(btn) {
-                btn.innerText = key.toUpperCase();
-                btn.disabled = false;
-                btn.style.opacity = "1";
-            }
             return scene;
         }
+
+        async function updateSite(site) {
+            currentSite = site;
+            document.getElementById("status-text").innerText = `Updating Site: ${site}`;
+            document.querySelectorAll('.nav-btn').forEach(b => { b.disabled = true; b.style.opacity = "0.3"; });
+
+            const firstScene = await loadSingleModel(site, "asp");
+            currentScene = firstScene;
+            switchType("asp");
+
+            document.getElementById("btn-asp").disabled = false;
+            document.getElementById("btn-asp").style.opacity = "1";
+
+            ["step1", "step2"].forEach(async (type) => {
+                await loadSingleModel(site, type);
+                const btn = document.getElementById(`btn-${type}`);
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                if(type === "step2") document.getElementById("status-text").innerText = `Site ${site} Ready`;
+            });
+        }
+
+        window.switchType = (type) => {
+            const key = `${currentSite}_${type}`;
+            if (!scenes[key]) return;
+            currentScene = scenes[key];
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${type}`).classList.add('active');
+            document.getElementById("description").innerHTML = DESCRIPTIONS[type];
+        };
+
+        window.changeSite = (e) => updateSite(e.target.value);
 
         async function main() {
             const canvas = document.getElementById("mainCanvas");
             renderer = new SPLAT.WebGLRenderer(canvas);
             camera = new SPLAT.Camera();
             controls = new SPLAT.OrbitControls(camera, canvas);
-
-            camera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
+            camera.position = new SPLAT.Vector3(1.0, -0.5, 0.0);
             controls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
 
-            const resize = () => {
-                renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
-            };
+            const resize = () => renderer.setSize(window.innerWidth, window.innerHeight, 1.0);
             window.addEventListener("resize", resize);
             resize();
-
-            window.switchModel = (key) => {
-                if (!scenes[key]) return;
-                currentScene = scenes[key];
-                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-                document.getElementById(`btn-${key}`).classList.add('active');
-            };
-
-            try {
-                const firstScene = await loadSingleModel('asp', MODELS.asp);
-                currentScene = firstScene;
-                document.getElementById('btn-asp').classList.add('active');
-                document.getElementById("status-text").innerText = "Background downloading others...";
-
-                loadSingleModel('step1', MODELS.step1);
-                loadSingleModel('step2', MODELS.step2).then(() => {
-                    document.getElementById("status-text").innerText = "All Models Ready";
-                });
-
-            } catch (err) {
-                document.getElementById("status-text").innerText = "Load Error";
-            }
 
             const frame = () => {
                 controls.update();
@@ -93,51 +100,71 @@
                 requestAnimationFrame(frame);
             };
             requestAnimationFrame(frame);
+            updateSite("068");
         }
-
         main();
     </script>
     <style>
-        body { margin: 0; background: #0b0b0b; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
+        body { margin: 0; background: #000; font-family: -apple-system, sans-serif; overflow: hidden; color: white; }
         #header {
             position: absolute; top: 0; left: 0; right: 0;
-            padding: 25px 35px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            z-index: 100; pointer-events: none;
+            padding: 30px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            z-index: 100; display: flex; justify-content: space-between; align-items: flex-start;
         }
-        h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
-        p { margin: 4px 0 0; font-size: 0.85rem; color: #888; }
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+        p { margin: 4px 0 0; font-size: 0.8rem; color: #aaa; letter-spacing: 0.5px; }
+        #site-selector {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 10px 15px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;
+        }
+        #nav-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; z-index: 100;
+        }
+        #description {
+            background: rgba(0, 0, 0, 0.6); padding: 12px 25px; border-radius: 20px;
+            font-size: 13px; max-width: 650px; text-align: center; color: #eee;
+            border: 1px solid rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px);
+        }
         #nav-bar {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 8px; background: rgba(30, 30, 30, 0.7);
-            backdrop-filter: blur(15px); padding: 8px; border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1); z-index: 100;
+            display: flex; gap: 10px; background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(15px); padding: 8px; border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .nav-btn {
-            padding: 12px 24px; border: none; background: transparent;
-            color: white; cursor: pointer; border-radius: 10px;
-            font-weight: 600; font-size: 13px; transition: all 0.2s;
-            opacity: 0.3;
+            padding: 10px 22px; border: none; background: transparent;
+            color: white; cursor: pointer; border-radius: 12px;
+            font-weight: 600; font-size: 12px; transition: all 0.2s; opacity: 0.3;
         }
-        .nav-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
-        .nav-btn.active { background: #007aff; color: white; opacity: 1 !important; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3); }
-        #status-bar {
-            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-            font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 1.5px;
-        }
+        .nav-btn.active { background: #007aff; color: white; opacity: 1 !important; }
+        #status-bar { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1.5px; }
         canvas { display: block; width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
     <div id="header">
-        <h1>3D Reconstruction with Satellite Images</h1>
-        <p>SatSplat Diffusion Refinement Process</p>
+        <div>
+            <h1>3D Reconstruction with Satellite Images</h1>
+            <p>From Traditional Pipeline to Modern Methods</p>
+        </div>
+        <select id="site-selector" onchange="changeSite(event)">
+            <option value="068">JAX_068</option>
+            <option value="214">JAX_214</option>
+            <option value="251">JAX_251</option>
+            <option value="260">JAX_260</option>
+        </select>
     </div>
-    <div id="nav-bar">
-        <button id="btn-asp" class="nav-btn" onclick="switchModel('asp')" disabled>ASP</button>
-        <button id="btn-step1" class="nav-btn" onclick="switchModel('step1')" disabled>Step 1</button>
-        <button id="btn-step2" class="nav-btn" onclick="switchModel('step2')" disabled>Step 2</button>
+
+    <div id="nav-container">
+        <div id="description">Select a step to visualize the refinement process.</div>
+        <div id="nav-bar">
+            <button id="btn-asp" class="nav-btn" onclick="switchType('asp')">ASP (Traditional)</button>
+            <button id="btn-step1" class="nav-btn" onclick="switchType('step1')">Step 1 (Gaussian)</button>
+            <button id="btn-step2" class="nav-btn" onclick="switchType('step2')">Step 2 (Iterative Diffusion)</button>
+        </div>
+        <div id="status-bar"><span id="status-text">Connecting...</span></div>
     </div>
-    <div id="status-bar"><span id="status-text">Connecting...</span></div>
+
     <canvas id="mainCanvas"></canvas>
 </body>
 </html>
