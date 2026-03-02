@@ -14,10 +14,34 @@
         h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
         .subtitle { margin: 4px 0 0; font-size: 0.8rem; color: #aaa; letter-spacing: 0.5px; }
         .workflow { margin-top: 8px; font-size: 0.75rem; color: #007aff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* 사이트 셀렉터 스타일 수정 */
         #site-selector {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; padding: 10px 15px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer;
+            background: rgba(255, 255, 255, 0.15); 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff; 
+            padding: 10px 15px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+            font-weight: 600;
+            outline: none; 
+            cursor: pointer;
+            appearance: none; /* 브라우저 기본 화살표 제거 (선택사항) */
+            -webkit-appearance: none;
+            transition: all 0.2s;
         }
+
+        #site-selector:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 드롭다운 메뉴(option) 텍스트가 안 보이는 현상 해결 */
+        #site-selector option {
+            background-color: #1a1a1a; 
+            color: #fff;
+        }
+
         #nav-container {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; z-index: 100;
