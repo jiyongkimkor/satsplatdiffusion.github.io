@@ -1,227 +1,298 @@
-body {
-  font-family: 'Noto Sans', sans-serif;
-  color: #1f2430;
-}
+<!DOCTYPE html>
+<html lang="en">
 
-.publication-title {
-  font-family: 'Google Sans', sans-serif;
-  font-weight: 700;
-  font-size: 2.1rem;
-  line-height: 1.3;
-  max-width: 920px;
-  margin: 0 auto;
-}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement">
+  <meta name="keywords" content="SatSplatDiff, satellite photogrammetry, Gaussian Splatting, diffusion refinement, shadow-informed reconstruction, digital surface model, remote sensing">
+  <meta property="og:title" content="SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement">
+  <meta property="og:description" content="SatSplatDiff combines shadow-informed geometric calibration with diffusion-based generative refinement for accurate and high-fidelity satellite Gaussian Splatting.">
+  <meta property="og:image" content="static/images/teaser.jpg">
+  <meta property="og:type" content="website">
 
-.publication-authors .author-block {
-  margin: 0 6px;
-}
+  <title>SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement</title>
 
-.institution-logos {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 28px;
-  margin-top: 18px;
-}
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+</head>
 
-.institution-logos img {
-  height: 44px;
-  width: auto;
-}
+<body>
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">
+              SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement
+            </h1>
 
-.institution-logos .lab-logo {
-  height: 44px;
-  border-radius: 6px;
-}
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">Jiyong Kim,</span>
+              <span class="author-block">Shuang Song,</span>
+              <span class="author-block">Rongjun Qin<sup>&dagger;</sup></span>
+            </div>
 
-.publication-links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
+            <div class="is-size-6 has-text-centered mt-2">
+              The Ohio State University<br>
+              <sup>&dagger;</sup> Corresponding author
+            </div>
 
-.link-block .button {
-  font-weight: 600;
-  font-size: 0.85rem;
-  border: 1px solid #d8dbe2;
-  background: #fff;
-  color: #1f2430;
-}
+            <div class="institution-logos">
+              <a href="https://ceg.osu.edu/" target="_blank" rel="noopener">
+                <img src="static/logos/osulogo.svg" alt="The Ohio State University logo">
+              </a>
+              <a href="https://u.osu.edu/qin.324/" target="_blank" rel="noopener">
+                <img class="lab-logo" src="static/logos/lab_logo.jpg" alt="Geospatial Data Analytics Laboratory logo">
+              </a>
+            </div>
 
-.link-block .button .icon {
-  margin-right: 6px;
-}
+            <div class="is-size-5 mt-4">
+              <a href="https://www.sciencedirect.com/journal/isprs-journal-of-photogrammetry-and-remote-sensing" target="_blank" rel="noopener">
+                ISPRS Journal of Photogrammetry and Remote Sensing
+              </a>
+            </div>
 
-.is-arxiv { border-color: #b31b1b; color: #b31b1b; }
-.is-arxiv:hover { background: #b31b1b; color: #fff; }
+            <div class="publication-links mt-5">
+              <span class="link-block">
+                <a href="#" onclick="return false;" class="button is-normal is-rounded is-article" aria-disabled="true">
+                  <span class="icon"><i class="fa-regular fa-file-lines"></i></span>
+                  <span>Article coming soon</span>
+                </a>
+              </span>
 
-.is-code { border-color: #1f2430; color: #1f2430; }
-.is-code:hover { background: #1f2430; color: #fff; }
+              <span class="link-block">
+                <a href="https://arxiv.org/" class="button is-normal is-rounded is-arxiv" target="_blank" rel="noopener">
+                  <span class="icon"><i class="ai ai-arxiv"></i></span>
+                  <span>arXiv</span>
+                </a>
+              </span>
 
-.is-article { opacity: 0.55; cursor: default; }
+              <span class="link-block">
+                <a href="https://github.com/gdaosu/satsplatdiff" class="button is-normal is-rounded is-code" target="_blank" rel="noopener">
+                  <span class="icon"><i class="fa-brands fa-github"></i></span>
+                  <span>Code</span>
+                </a>
+              </span>
 
-.is-viewer { border-color: #2f6fed; color: #2f6fed; }
-.is-viewer:hover { background: #2f6fed; color: #fff; }
+              <span class="link-block">
+                <a href="viewer.html" class="button is-normal is-rounded is-viewer" target="_blank" rel="noopener">
+                  <span class="icon"><i class="fa-solid fa-cube"></i></span>
+                  <span>Interactive Viewer</span>
+                </a>
+              </span>
+            </div>
 
-.hero-figure {
-  margin-top: 36px;
-  max-width: 880px;
-  margin-left: auto;
-  margin-right: auto;
-}
+            <figure class="hero-figure">
+              <img src="static/images/teaser.jpg" alt="SatSplatDiff graphic overview showing shadow-guided calibration and diffusion-based refinement results">
+              <figcaption class="caption">
+                SatSplatDiff refines satellite Gaussian Splatting with shadow-informed geometric calibration and diffusion-based generative refinement, improving both geometric accuracy and visual fidelity.
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-.hero-figure img {
-  width: 100%;
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-}
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Gaussian Splatting has enabled efficient and accurate 3D reconstruction from satellite imagery, but two limitations persist. Geometric accuracy is bounded by the sparse, low-intersection-angle observations typical of satellite acquisitions, and rendering quality degrades in regions with limited view coverage or strong illumination variation across multi-date images.
+            </p>
+            <p>
+              We present <strong>SatSplatDiff</strong>, a framework that addresses both limitations within a single pipeline. We introduce a shadow-guided absolute height calibration stage that uses cast shadows as a geometric cue to correct height errors that are otherwise unobservable from near-nadir satellite views alone. We then apply a diffusion-based refinement stage that improves visual fidelity in under-observed regions, using pseudo-real data mixing to keep the generative refinement consistent with the underlying scene geometry.
+            </p>
+            <p>
+              Across satellite Gaussian Splatting benchmarks, SatSplatDiff improves both geometric accuracy and rendering fidelity over prior splatting-based baselines, while keeping the diffusion-based refinement decoupled from training so it can be applied as a post-processing stage to existing splatting pipelines.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-.caption {
-  font-size: 0.85rem;
-  color: #6b7280;
-  text-align: center;
-  margin-top: 10px;
-  line-height: 1.5;
-}
+  <section class="section">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Method Overview</h2>
+      <p class="subtitle has-text-centered">
+        Two decoupled stages: shadow-guided geometric calibration, then diffusion-based generative refinement.
+      </p>
+      <figure class="result-figure">
+        <img src="static/images/pipeline.jpg" alt="SatSplatDiff pipeline diagram showing shadow-guided calibration followed by diffusion-based refinement">
+        <figcaption class="caption">
+          The shadow-guided calibration stage corrects absolute height errors using cast-shadow geometry. The diffusion-based refinement stage then improves visual fidelity in low-coverage regions without altering the calibrated geometry.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
 
-.section-divider {
-  border-top: 1px solid #ebedf0;
-}
+  <section class="section hero is-light section-divider">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Shadow-Guided Height Calibration</h2>
+      <div class="paired-figure">
+        <div>
+          <div class="image-label">Before calibration</div>
+          <img src="static/images/height_before.jpg" alt="Height map before shadow-guided calibration">
+        </div>
+        <div>
+          <div class="image-label">After calibration</div>
+          <img src="static/images/height_after.jpg" alt="Height map after shadow-guided calibration">
+        </div>
+      </div>
+      <p class="caption">
+        Cast shadows provide a geometric cue for absolute height that is largely unobservable from near-nadir views alone, letting the calibration stage correct systematic height errors.
+      </p>
+    </div>
+  </section>
 
-.metric-strip {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 36px;
-  margin: 24px 0 40px;
-}
+  <section class="section">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Diffusion-Based Refinement</h2>
+      <div class="paired-figure">
+        <div>
+          <div class="image-label">Splatting only</div>
+          <img src="static/images/refine_before.jpg" alt="Rendered view before diffusion-based refinement">
+        </div>
+        <div>
+          <div class="image-label">After refinement</div>
+          <img src="static/images/refine_after.jpg" alt="Rendered view after diffusion-based refinement">
+        </div>
+      </div>
+      <p class="caption">
+        Diffusion-based refinement recovers fine detail in regions with limited view coverage, while pseudo-real data mixing keeps the refined output consistent with the calibrated geometry.
+      </p>
+    </div>
+  </section>
 
-.metric {
-  text-align: center;
-  min-width: 160px;
-}
+  <section class="section hero is-light section-divider">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Results</h2>
+      <p class="subtitle has-text-centered">
+        Geometric accuracy (MAE, meters) and rendering fidelity against prior splatting-based baselines. Lower MAE / higher fidelity is better.
+      </p>
 
-.metric .value {
-  font-family: 'Google Sans', sans-serif;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #2f6fed;
-}
+      <div class="metric-strip">
+        <div class="metric">
+          <div class="value">—</div>
+          <div class="label">MAE reduction over best splatting baseline</div>
+        </div>
+        <div class="metric">
+          <div class="value">—</div>
+          <div class="label">Fidelity improvement in low-coverage regions</div>
+        </div>
+        <div class="metric">
+          <div class="value">—</div>
+          <div class="label">Refinement runtime as post-processing</div>
+        </div>
+      </div>
 
-.metric .label {
-  font-size: 0.78rem;
-  color: #6b7280;
-  margin-top: 4px;
-  max-width: 180px;
-  margin-left: auto;
-  margin-right: auto;
-}
+      <div class="results-table">
+        <table class="table is-bordered is-striped is-hoverable is-fullwidth">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>MAE&nbsp;&darr; (m)</th>
+              <th>PSNR&nbsp;&uarr;</th>
+              <th>SSIM&nbsp;&uarr;</th>
+              <th>LPIPS&nbsp;&darr;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>EOGS</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>SatSplat</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>Skyfall-GS</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr class="ours-row"><td>SatSplatDiff (Ours)</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p class="caption mt-3">Replace the placeholder dashes with the finalized benchmark numbers.</p>
+      </div>
 
-.results-table {
-  overflow-x: auto;
-  margin-bottom: 8px;
-}
+      <h3 class="title is-4 has-text-centered mt-6">Qualitative Comparison</h3>
+      <p class="subtitle has-text-centered">
+        Side-by-side reconstructions across competing methods.
+      </p>
 
-.results-table table {
-  font-size: 0.88rem;
-}
+      <div class="qualitative-wrap">
+        <div class="qualitative-grid">
+          <div></div>
+          <div class="qual-header">(a)<br>Google Earth</div>
+          <div class="qual-header">(b)<br>EOGS</div>
+          <div class="qual-header">(c)<br>SatSplat</div>
+          <div class="qual-header">(d)<br>Skyfall-GS</div>
+          <div class="qual-header">(e)<br>SatSplatDiff</div>
+          <div class="qual-header">(f)<br>GT</div>
 
-.ours-row {
-  background: #eaf1ff !important;
-  font-weight: 600;
-}
+          <div class="site-label">Site&nbsp;A</div>
+          <img src="static/images/qualitative/site_a/google_earth.jpg" alt="Site A Google Earth reference">
+          <img src="static/images/qualitative/site_a/eogs.jpg" alt="Site A EOGS reconstruction">
+          <img src="static/images/qualitative/site_a/satsplat.jpg" alt="Site A SatSplat reconstruction">
+          <img src="static/images/qualitative/site_a/skyfallgs.jpg" alt="Site A Skyfall-GS reconstruction">
+          <img class="ours-cell" src="static/images/qualitative/site_a/satsplatdiff.jpg" alt="Site A SatSplatDiff reconstruction">
+          <img src="static/images/qualitative/site_a/gt.jpg" alt="Site A ground truth">
 
-.qualitative-wrap {
-  overflow-x: auto;
-  margin-top: 24px;
-}
+          <div class="site-label">Site&nbsp;B</div>
+          <img src="static/images/qualitative/site_b/google_earth.jpg" alt="Site B Google Earth reference">
+          <img src="static/images/qualitative/site_b/eogs.jpg" alt="Site B EOGS reconstruction">
+          <img src="static/images/qualitative/site_b/satsplat.jpg" alt="Site B SatSplat reconstruction">
+          <img src="static/images/qualitative/site_b/skyfallgs.jpg" alt="Site B Skyfall-GS reconstruction">
+          <img class="ours-cell" src="static/images/qualitative/site_b/satsplatdiff.jpg" alt="Site B SatSplatDiff reconstruction">
+          <img src="static/images/qualitative/site_b/gt.jpg" alt="Site B ground truth">
+        </div>
+      </div>
 
-.qualitative-grid {
-  display: grid;
-  grid-template-columns: 80px repeat(6, minmax(100px, 1fr));
-  gap: 6px;
-  align-items: center;
-  min-width: 760px;
-}
+      <p class="caption">
+        SatSplatDiff recovers sharper structure and reduces residual height error compared to prior splatting-based baselines, most noticeably in regions with limited view coverage.
+      </p>
+    </div>
+  </section>
 
-.qual-header {
-  font-size: 0.72rem;
-  text-align: center;
-  color: #6b7280;
-  font-weight: 600;
-  line-height: 1.3;
-}
+  <section class="section">
+    <div class="container is-max-desktop has-text-centered">
+      <h2 class="title is-3">Try It Yourself</h2>
+      <p class="subtitle">
+        Explore the calibrated and refined reconstructions interactively.
+      </p>
+      <a href="viewer.html" class="button is-normal is-rounded is-viewer is-medium" target="_blank" rel="noopener">
+        <span class="icon"><i class="fa-solid fa-cube"></i></span>
+        <span>Open Interactive Viewer</span>
+      </a>
+      <p class="caption mt-3">
+        Opens in a new tab. The viewer streams large splat files separately so this page stays light.
+      </p>
+    </div>
+  </section>
 
-.site-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #1f2430;
-  writing-mode: horizontal-tb;
-}
+  <section class="section hero is-light section-divider">
+    <div class="container is-max-desktop">
+      <h2 class="title is-3 has-text-centered">Citation</h2>
+      <pre><code>@article{kim2026satsplatdiff,
+  title   = {SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement},
+  author  = {Kim, Jiyong and Song, Shuang and Qin, Rongjun},
+  journal = {ISPRS Journal of Photogrammetry and Remote Sensing},
+  year    = {2026},
+  note    = {Coming soon}
+}</code></pre>
+    </div>
+  </section>
 
-.qualitative-grid img {
-  width: 100%;
-  border-radius: 4px;
-  display: block;
-}
+  <footer class="footer">
+    <div class="container is-max-desktop">
+      <div class="content has-text-centered">
+        <p>
+          Built by the Geospatial Data Analytics Laboratory at The Ohio State University.
+          Page style adapted from the Academic Project Page Template.
+        </p>
+      </div>
+    </div>
+  </footer>
+</body>
 
-.qualitative-grid img.ours-cell {
-  outline: 2px solid #2f6fed;
-  outline-offset: -2px;
-}
-
-.paired-figure {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 24px;
-}
-
-.paired-figure > div {
-  flex: 1 1 280px;
-  max-width: 420px;
-  text-align: center;
-}
-
-.paired-figure img {
-  width: 100%;
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.image-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #1f2430;
-  margin-bottom: 8px;
-}
-
-.result-figure {
-  text-align: center;
-}
-
-.result-figure img {
-  width: 100%;
-  max-width: 760px;
-  border-radius: 6px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-pre {
-  background: #1f2430;
-  color: #e7e9ee;
-  border-radius: 8px;
-  padding: 18px 20px;
-  font-size: 0.82rem;
-  overflow-x: auto;
-}
-
-@media (max-width: 768px) {
-  .publication-title {
-    font-size: 1.5rem;
-  }
-  .qualitative-grid {
-    grid-template-columns: 60px repeat(6, minmax(90px, 1fr));
-  }
-}
+</html>
