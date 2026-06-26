@@ -27,6 +27,9 @@ body {
 .institution-logos img {
   height: 26px;
   width: auto;
+  background: #1f2430;
+  border-radius: 4px;
+  padding: 4px 8px;
 }
 
 .institution-logos .lab-logo {
