@@ -4,14 +4,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement">
+  <meta name="description" content="SatSplatDiff: Geometrically-Preserving Generative Refinement for High-Fidelity Satellite Gaussian Splatting">
   <meta name="keywords" content="SatSplatDiff, satellite photogrammetry, Gaussian Splatting, diffusion refinement, shadow-informed reconstruction, digital surface model, remote sensing">
-  <meta property="og:title" content="SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement">
+  <meta property="og:title" content="SatSplatDiff: Geometrically-Preserving Generative Refinement for High-Fidelity Satellite Gaussian Splatting">
   <meta property="og:description" content="SatSplatDiff combines shadow-informed geometric calibration with diffusion-based generative refinement for accurate and high-fidelity satellite Gaussian Splatting.">
   <meta property="og:image" content="static/images/teaser.jpg">
   <meta property="og:type" content="website">
 
-  <title>SatSplatDiff: Geometrically-Preserving Generative Refinement for Hihg-Fidelity Satellite Gaussian Splatting</title>
+  <title>SatSplatDiff: Geometrically-Preserving Generative Refinement for High-Fidelity Satellite Gaussian Splatting</title>
 
   <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
@@ -27,18 +27,18 @@
         <div class="columns is-centered">
           <div class="column has-text-centered">
             <h1 class="title is-1 publication-title">
-              SatSplatDiff: Geometrically-Preserving Generative Refinement for Hihg-Fidelity Satellite Gaussian Splatting
+              SatSplatDiff: Geometrically-Preserving Generative Refinement for High-Fidelity Satellite Gaussian Splatting
             </h1>
 
             <div class="is-size-5 publication-authors">
-              <span class="author-block">Jiyong Kim,</span>
-              <span class="author-block">Shuang Song,</span>
+              <span class="author-block">Jiyong Kim<sup>1</sup>,</span>
+              <span class="author-block">Shuang Song<sup>1</sup>,</span>
               <span class="author-block">Rongjun Qin<sup>&dagger;</sup></span>
             </div>
 
             <div class="is-size-6 has-text-centered mt-2">
               The Ohio State University<br>
-              <sup>&dagger;</sup> Corresponding author
+              <sup>1</sup> Equal contribution &nbsp; <sup>&dagger;</sup> Corresponding author
             </div>
 
             <div class="institution-logos">
@@ -99,13 +99,13 @@
           <h2 class="title is-3">Abstract</h2>
           <div class="content has-text-justified">
             <p>
-              Gaussian Splatting has enabled efficient and accurate 3D reconstruction from satellite imagery, but two limitations persist. Geometric accuracy is bounded by the sparse, low-intersection-angle observations typical of satellite acquisitions, and rendering quality degrades in regions with limited view coverage or strong illumination variation across multi-date images.
+              Gaussian Splatting has recently been explored for satellite 3D reconstruction, but the limited top-down viewpoint of satellite imagery leaves building facades under-supervised, producing surface holes and degraded visual fidelity. Generative refinement with pretrained diffusion priors can recover missing appearance detail, but refining each view independently introduces hallucinations and breaks photo-consistency, leading to geometric degradation.
             </p>
             <p>
-              We present <strong>SatSplatDiff</strong>, a framework that addresses both limitations within a single pipeline. We introduce a shadow-guided absolute height calibration stage that uses cast shadows as a geometric cue to correct height errors that are otherwise unobservable from near-nadir satellite views alone. We then apply a diffusion-based refinement stage that improves visual fidelity in under-observed regions, using pseudo-real data mixing to keep the generative refinement consistent with the underlying scene geometry.
+              We present <strong>SatSplatDiff</strong>, which minimizes this geometric degradation. Building on the photogrammetric DSM initialization and 2DGS-based shadow casting from our prior work SatSplat, we first add monocular depth supervision and multi-scale geometric refinement to establish an accurate, well-regularized surface. We then apply shadow-guided generative refinement, where geometrically calculated shadow maps condition the diffusion-based refinement to stay consistent with the underlying geometry, improving visual fidelity while limiting geometric drift.
             </p>
             <p>
-              Across satellite Gaussian Splatting benchmarks, SatSplatDiff improves both geometric accuracy and rendering fidelity over prior splatting-based baselines, while keeping the diffusion-based refinement decoupled from training so it can be applied as a post-processing stage to existing splatting pipelines.
+              On the IARPA2016 and DFC2019 datasets, SatSplatDiff reduces geometric MAE<sub>reg</sub> by up to 18% and improves visual fidelity (FID-CLIP) by 28&ndash;45% over existing baselines, delivering up to 5&times; effective resolution enhancement with minimal hallucination and sensor-consistent appearance. By preserving geometric accuracy throughout, the method also shows seamless cross-tile consistency and strong scalability for large-scale reconstruction.
             </p>
           </div>
         </div>
@@ -117,12 +117,12 @@
     <div class="container is-max-desktop">
       <h2 class="title is-3 has-text-centered">Method Overview</h2>
       <p class="subtitle has-text-centered">
-        Two decoupled stages: shadow-guided geometric calibration, then diffusion-based generative refinement.
+        Two-stage pipeline: monocular-depth-supervised geometric optimization, then shadow-guided generative refinement.
       </p>
       <figure class="result-figure">
-        <img src="static/images/pipeline.jpg" alt="SatSplatDiff pipeline diagram showing shadow-guided calibration followed by diffusion-based refinement">
+        <img src="static/images/pipeline.jpg" alt="SatSplatDiff pipeline diagram showing geometric optimization followed by shadow-guided generative refinement">
         <figcaption class="caption">
-          The shadow-guided calibration stage corrects absolute height errors using cast-shadow geometry. The diffusion-based refinement stage then improves visual fidelity in low-coverage regions without altering the calibrated geometry.
+          The geometric optimization stage extends SatSplat with monocular depth supervision, multi-scale refinement, and densification to build a well-regularized surface. Shadow-guided generative refinement then conditions diffusion-based image enhancement on geometrically calculated shadow maps, improving visual fidelity while limiting geometric drift.
         </figcaption>
       </figure>
     </div>
@@ -130,38 +130,38 @@
 
   <section class="section hero is-light section-divider">
     <div class="container is-max-desktop">
-      <h2 class="title is-3 has-text-centered">Shadow-Guided Height Calibration</h2>
+      <h2 class="title is-3 has-text-centered">Geometric Optimization</h2>
       <div class="paired-figure">
         <div>
-          <div class="image-label">Before calibration</div>
-          <img src="static/images/height_before.jpg" alt="Height map before shadow-guided calibration">
+          <div class="image-label">SatSplat (prior work)</div>
+          <img src="static/images/height_before.jpg" alt="Surface from SatSplat before geometric optimization">
         </div>
         <div>
-          <div class="image-label">After calibration</div>
-          <img src="static/images/height_after.jpg" alt="Height map after shadow-guided calibration">
+          <div class="image-label">With added geometric optimization</div>
+          <img src="static/images/height_after.jpg" alt="Surface after monocular depth supervision and multi-scale geometric refinement">
         </div>
       </div>
       <p class="caption">
-        Cast shadows provide a geometric cue for absolute height that is largely unobservable from near-nadir views alone, letting the calibration stage correct systematic height errors.
+        Monocular depth supervision, multi-scale geometric refinement, and densification extend SatSplat to address insufficient facade supervision, producing a well-regularized surface ready for generative refinement.
       </p>
     </div>
   </section>
 
   <section class="section">
     <div class="container is-max-desktop">
-      <h2 class="title is-3 has-text-centered">Diffusion-Based Refinement</h2>
+      <h2 class="title is-3 has-text-centered">Shadow-Guided Generative Refinement</h2>
       <div class="paired-figure">
         <div>
-          <div class="image-label">Splatting only</div>
-          <img src="static/images/refine_before.jpg" alt="Rendered view before diffusion-based refinement">
+          <div class="image-label">Before generative refinement</div>
+          <img src="static/images/refine_before.jpg" alt="Rendered view before shadow-guided generative refinement">
         </div>
         <div>
-          <div class="image-label">After refinement</div>
-          <img src="static/images/refine_after.jpg" alt="Rendered view after diffusion-based refinement">
+          <div class="image-label">After generative refinement</div>
+          <img src="static/images/refine_after.jpg" alt="Rendered view after shadow-guided generative refinement">
         </div>
       </div>
       <p class="caption">
-        Diffusion-based refinement recovers fine detail in regions with limited view coverage, while pseudo-real data mixing keeps the refined output consistent with the calibrated geometry.
+        Geometrically calculated shadow maps condition the diffusion-based refinement, recovering up to 5&times; effective resolution on building facades while keeping the result consistent with the underlying geometry and avoiding hallucination.
       </p>
     </div>
   </section>
@@ -170,21 +170,21 @@
     <div class="container is-max-desktop">
       <h2 class="title is-3 has-text-centered">Results</h2>
       <p class="subtitle has-text-centered">
-        Geometric accuracy (MAE, meters) and rendering fidelity against prior splatting-based baselines. Lower MAE / higher fidelity is better.
+        Geometric accuracy (MAE<sub>reg</sub>) and visual fidelity (FID-CLIP) against prior splatting-based baselines on IARPA2016 and DFC2019.
       </p>
 
       <div class="metric-strip">
         <div class="metric">
-          <div class="value">—</div>
-          <div class="label">MAE reduction over best splatting baseline</div>
+          <div class="value">&minus;18%</div>
+          <div class="label">Geometric MAE<sub>reg</sub> reduction over baselines</div>
         </div>
         <div class="metric">
-          <div class="value">—</div>
-          <div class="label">Fidelity improvement in low-coverage regions</div>
+          <div class="value">+28&ndash;45%</div>
+          <div class="label">Visual fidelity (FID-CLIP) improvement</div>
         </div>
         <div class="metric">
-          <div class="value">—</div>
-          <div class="label">Refinement runtime as post-processing</div>
+          <div class="value">5&times;</div>
+          <div class="label">Effective resolution enhancement</div>
         </div>
       </div>
 
@@ -193,17 +193,15 @@
           <thead>
             <tr>
               <th>Method</th>
-              <th>MAE&nbsp;&darr; (m)</th>
-              <th>PSNR&nbsp;&uarr;</th>
-              <th>SSIM&nbsp;&uarr;</th>
-              <th>LPIPS&nbsp;&darr;</th>
+              <th>MAE<sub>reg</sub>&nbsp;&darr; (m)</th>
+              <th>FID-CLIP&nbsp;&darr;</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>EOGS</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-            <tr><td>SatSplat</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-            <tr><td>Skyfall-GS</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-            <tr class="ours-row"><td>SatSplatDiff (Ours)</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>EOGS</td><td>&mdash;</td><td>&mdash;</td></tr>
+            <tr><td>SatSplat</td><td>&mdash;</td><td>&mdash;</td></tr>
+            <tr><td>Skyfall-GS</td><td>&mdash;</td><td>&mdash;</td></tr>
+            <tr class="ours-row"><td>SatSplatDiff (Ours)</td><td>&mdash;</td><td>&mdash;</td></tr>
           </tbody>
         </table>
         <p class="caption mt-3">Replace the placeholder dashes with the finalized benchmark numbers.</p>
@@ -268,7 +266,7 @@
     <div class="container is-max-desktop">
       <h2 class="title is-3 has-text-centered">Citation</h2>
       <pre><code>@article{kim2026satsplatdiff,
-  title   = {SatSplatDiff: Geometrically Accurate and High-Fidelity Satellite Gaussian Splatting with Diffusion-Based Refinement},
+  title   = {SatSplatDiff: Geometrically-Preserving Generative Refinement for High-Fidelity Satellite Gaussian Splatting},
   author  = {Kim, Jiyong and Song, Shuang and Qin, Rongjun},
   journal = {arXiv preprint arXiv:2606.27223},
   year    = {2026}
