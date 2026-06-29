@@ -18,6 +18,52 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="static/css/index.css">
+
+  <style>
+    #hero-viewer-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      height: 480px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+    #heroCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #hero-site-selector {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 10;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+    #hero-loading {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 13px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 16px;
+      border-radius: 10px;
+      z-index: 5;
+    }
+    #hero-loading.hidden { display: none; }
+  </style>
 </head>
 
 <body>
@@ -81,9 +127,19 @@
             </div>
 
             <figure class="hero-figure">
-              <img src="static/images/teaser.jpg" alt="SatSplatDiff graphic overview showing shadow-guided calibration and diffusion-based refinement results">
+              <div id="hero-viewer-container">
+                <canvas id="heroCanvas"></canvas>
+                <select id="hero-site-selector" onchange="changeHeroSite(event)">
+                  <option value="JAX_068">JAX-068</option>
+                  <option value="JAX_214">JAX-214</option>
+                  <option value="JAX_260">JAX-260</option>
+                  <option value="JAX_280" selected>JAX-280</option>
+                  <option value="OMA_203">OMA-203</option>
+                </select>
+                <div id="hero-loading">Loading reconstruction&hellip;</div>
+              </div>
               <figcaption class="caption">
-                SatSplatDiff refines satellite Gaussian Splatting with shadow-informed geometric calibration and diffusion-based generative refinement, improving both geometric accuracy and visual fidelity.
+                Interactive SatSplatDiff reconstruction &mdash; drag to explore, switch sites above.
               </figcaption>
             </figure>
           </div>
@@ -250,9 +306,9 @@
     <div class="container is-max-desktop has-text-centered">
       <h2 class="title is-3">Try It Yourself</h2>
       <p class="subtitle">
-        Explore the calibrated and refined reconstructions interactively.
+        Explore the calibrated and refined reconstructions interactively, including comparisons against ASP and Skyfall-GS.
       </p>
-      <a href="viewer.html" class="button is-normal is-rounded is-viewer is-medium" target="_blank" rel="noopener">
+      <a href="https://gdaosu.github.io/satsplat_html/?satsplatdiff_ver=true&hide_skyfall_gs=true" class="button is-normal is-rounded is-viewer is-medium" target="_blank" rel="noopener">
         <span class="icon"><i class="fa-solid fa-cube"></i></span>
         <span>Open Interactive Viewer</span>
       </a>
@@ -284,6 +340,80 @@
       </div>
     </div>
   </footer>
+
+  <script type="module">
+    import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@latest";
+
+    const HERO_BASE_URL = "https://huggingface.co/datasets/jiyong1591/SatSplatDiffusion/resolve/main";
+    let heroCamera, heroControls, heroRenderer, heroScene;
+    let heroCurrentSite = "JAX_280";
+
+    function getHeroUrl(site) {
+      return `${HERO_BASE_URL}/${site}_step2_baked.ply?download=true`;
+    }
+
+    function setHeroLoading(isLoading) {
+      const el = document.getElementById("hero-loading");
+      if (el) el.classList.toggle("hidden", !isLoading);
+    }
+
+    async function loadHeroSite(site) {
+      setHeroLoading(true);
+      const scene = new SPLAT.Scene();
+      try {
+        await SPLAT.PLYLoader.LoadAsync(getHeroUrl(site), scene);
+        const obj = scene.objects[0];
+        if (obj && obj.data && obj.data.positions) {
+          const pos = obj.data.positions;
+          let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+          for (let i = 0; i < pos.length; i += 3) {
+            minX = Math.min(minX, pos[i]); maxX = Math.max(maxX, pos[i]);
+            minY = Math.min(minY, pos[i+1]); maxY = Math.max(maxY, pos[i+1]);
+            minZ = Math.min(minZ, pos[i+2]); maxZ = Math.max(maxZ, pos[i+2]);
+          }
+          const cX = (minX + maxX) / 2, cY = (minY + maxY) / 2, cZ = (minZ + maxZ) / 2;
+          for (let i = 0; i < pos.length; i += 3) { pos[i] -= cX; pos[i+1] -= cY; pos[i+2] -= cZ; }
+        }
+        obj.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(Math.PI / 2, 0, 0));
+        heroScene = scene;
+      } catch (error) {
+        console.error(`Hero viewer load error: ${site}`, error);
+      }
+      setHeroLoading(false);
+    }
+
+    window.changeHeroSite = async (e) => {
+      heroCurrentSite = e.target.value;
+      await loadHeroSite(heroCurrentSite);
+    };
+
+    async function initHeroViewer() {
+      const canvas = document.getElementById("heroCanvas");
+      heroCamera = new SPLAT.Camera();
+      heroControls = new SPLAT.OrbitControls(heroCamera, canvas);
+      heroCamera.position = new SPLAT.Vector3(1.5, -0.8, 0.5);
+      heroControls.setCameraTarget(new SPLAT.Vector3(0, 0, 0));
+      heroRenderer = new SPLAT.WebGLRenderer(canvas);
+
+      const resize = () => {
+        const container = document.getElementById("hero-viewer-container");
+        heroRenderer.setSize(container.clientWidth, container.clientHeight, 1.0);
+      };
+      window.addEventListener("resize", resize);
+      resize();
+
+      await loadHeroSite(heroCurrentSite);
+
+      const frame = () => {
+        heroControls.update();
+        if (heroScene) heroRenderer.render(heroScene, heroCamera);
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }
+
+    initHeroViewer();
+  </script>
 </body>
 
 </html>
